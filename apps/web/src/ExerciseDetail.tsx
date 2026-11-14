@@ -14,6 +14,7 @@ import { LineChart } from './Chart';
 import { useData } from './data';
 import { ExerciseEditor } from './ExerciseEditor';
 import { typeLabel } from './ExercisePicker';
+import { Overlay } from './ui';
 
 type Pane = 'history' | 'charts' | 'records';
 const dayFormat = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
@@ -30,7 +31,7 @@ export function ExerciseDetail({ exerciseId, onClose }: { exerciseId: string; on
   if (editing) return <ExerciseEditor exercise={exercise} onClose={() => setEditing(false)} onDeleted={onClose} />;
 
   return (
-    <div className="overlay" role="dialog" aria-label={exercise.name}>
+    <Overlay label={exercise.name}>
       <header className="overlay-head">
         <div>
           <h2>{exercise.name}</h2>
@@ -76,7 +77,7 @@ export function ExerciseDetail({ exerciseId, onClose }: { exerciseId: string; on
         {sessions.length > 0 && pane === 'charts' && <Charts exercise={exercise} />}
         {sessions.length > 0 && pane === 'records' && <Records exercise={exercise} />}
       </div>
-    </div>
+    </Overlay>
   );
 }
 

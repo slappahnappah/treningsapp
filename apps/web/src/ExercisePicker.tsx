@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Exercise } from '@stige/core';
 import { useData } from './data';
+import { Overlay } from './ui';
 
 export const TYPE_LABEL: Record<Exercise['type'], string> = {
   weight_reps: 'Vekt × reps',
@@ -29,7 +30,7 @@ export function ExercisePicker({ onPick, onClose }: { onPick: (e: Exercise) => v
   const [query, setQuery] = useState('');
   const list = useExerciseSearch(query);
   return (
-    <div className="overlay" role="dialog" aria-label="Velg øvelse">
+    <Overlay label="Velg øvelse">
       <header className="overlay-head">
         <h2>Legg til øvelse</h2>
         <button className="btn" onClick={onClose}>
@@ -54,6 +55,6 @@ export function ExercisePicker({ onPick, onClose }: { onPick: (e: Exercise) => v
         ))}
         {list.length === 0 && <li className="muted pad">Ingen øvelser passer med søket.</li>}
       </ul>
-    </div>
+    </Overlay>
   );
 }

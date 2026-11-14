@@ -16,7 +16,7 @@ import { deleteWorkout, saveAsRoutine, saveNote, setDeload, setWeekDeload } from
 import { useData } from './data';
 import { ProgressArrow, ProgressList, useProgress } from './Progress';
 import { SummaryOverlay } from './Summary';
-import { Sheet } from './ui';
+import { Overlay, Sheet } from './ui';
 import { WorkoutView } from './WorkoutView';
 
 const dayFormat = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -140,11 +140,11 @@ export function WorkoutCard({ workout, actions }: { workout: Workout; actions?: 
       )}
       {overlay === 'summary' && <SummaryOverlay workout={workout} onClose={() => setOverlay(null)} />}
       {overlay === 'edit' && (
-        <div className="overlay">
+        <Overlay label="Rediger økta">
           <div className="overlay-scroll">
             <WorkoutView workout={workout} editing onClose={() => setOverlay(null)} />
           </div>
-        </div>
+        </Overlay>
       )}
     </section>
   );

@@ -14,7 +14,7 @@ import { useData } from './data';
 import { db, getDeloadWeeks, saveSettings, setRestTimer } from './db';
 import { HoldClock } from './HoldClock';
 import { copyText, saveFile } from './share';
-import { NumberField, Sheet } from './ui';
+import { NumberField, Overlay, Sheet } from './ui';
 
 const PLATE_CHOICES = [25, 20, 15, 10, 5, 2.5, 1.25, 0.5];
 const THRESHOLD_LABELS: [keyof Settings['thresholds'], string][] = [
@@ -197,7 +197,7 @@ function NamesOverlay({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="overlay" role="dialog" aria-label="Navn i Whoop og Bevel">
+    <Overlay label="Navn i Whoop og Bevel">
       <header className="overlay-head">
         <h2>Navn i andre apper</h2>
         <button className="btn" onClick={onClose}>
@@ -246,7 +246,7 @@ function NamesOverlay({ onClose }: { onClose: () => void }) {
           </section>
         ))}
       </div>
-    </div>
+    </Overlay>
   );
 }
 

@@ -11,6 +11,7 @@ import {
 import { useData } from './data';
 import { db } from './db';
 import { TYPE_LABEL } from './ExercisePicker';
+import { Overlay } from './ui';
 
 const EQUIPMENT: Record<Equipment, string> = {
   barbell: 'Stang',
@@ -105,7 +106,7 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
   };
 
   return (
-    <div className="overlay" role="dialog" aria-label={isNew ? 'Ny øvelse' : 'Rediger øvelse'}>
+    <Overlay label={isNew ? 'Ny øvelse' : 'Rediger øvelse'}>
       <header className="overlay-head">
         <h2>{isNew ? 'Ny øvelse' : 'Rediger øvelse'}</h2>
         <div className="row-gap">
@@ -288,6 +289,6 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
           </>
         )}
       </div>
-    </div>
+    </Overlay>
   );
 }

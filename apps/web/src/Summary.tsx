@@ -3,6 +3,7 @@ import { buildSummary, type SummaryTarget, type Workout } from '@stige/core';
 import { useData } from './data';
 import { ProgressList } from './Progress';
 import { copyText, shareText } from './share';
+import { Overlay } from './ui';
 
 const KEY = 'stige.summaryTarget';
 
@@ -37,7 +38,7 @@ export function SummaryOverlay({ workout, onClose, finished }: { workout: Workou
   const missingNames = [...new Set(missing.map((we) => exMap.get(we.exerciseId)?.name))];
 
   return (
-    <div className="overlay" role="dialog" aria-label="Øktsammendrag">
+    <Overlay label="Øktsammendrag">
       <header className="overlay-head">
         <h2>{finished ? 'Økta er lagret' : 'Sammendrag'}</h2>
         <button className="btn" onClick={onClose}>
@@ -79,6 +80,6 @@ export function SummaryOverlay({ workout, onClose, finished }: { workout: Workou
         <h3>Progresjon mot forrige like økt</h3>
         <ProgressList workout={workout} />
       </div>
-    </div>
+    </Overlay>
   );
 }

@@ -46,7 +46,13 @@ export function RestBar() {
     };
   }, [endsAt, volume]);
 
-  if (!rest) return null;
+  // En timer som gikk ut for lenge siden (appen ble lukket) ryddes bort.
+  const stale = !!rest && now - rest.endsAt > 10 * 60_000;
+  useEffect(() => {
+    if (stale) void setRestTimer(undefined);
+  }, [stale]);
+
+  if (!rest || stale) return null;
   const remaining = Math.ceil((rest.endsAt - now) / 1000);
   const total = Math.max(1, (rest.endsAt - rest.startedAt) / 1000);
   const done = remaining <= 0;

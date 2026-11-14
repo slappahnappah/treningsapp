@@ -3,6 +3,7 @@ import { plannedSetsFor, type Routine } from '@stige/core';
 import { useData } from './data';
 import { db } from './db';
 import { ExercisePicker } from './ExercisePicker';
+import { Overlay } from './ui';
 
 interface Row {
   key: string;
@@ -86,7 +87,7 @@ export function RoutineEditor({ routine, isNew, onClose }: { routine: Routine; i
   };
 
   return (
-    <div className="overlay" role="dialog" aria-label={isNew ? 'Ny rutine' : 'Rediger rutine'}>
+    <Overlay label={isNew ? 'Ny rutine' : 'Rediger rutine'}>
       <header className="overlay-head">
         <h2>{isNew ? 'Ny rutine' : 'Rediger rutine'}</h2>
         <div className="row-gap">
@@ -173,6 +174,6 @@ export function RoutineEditor({ routine, isNew, onClose }: { routine: Routine; i
           }}
         />
       )}
-    </div>
+    </Overlay>
   );
 }

@@ -3,6 +3,7 @@ import { beep, playTone, tick, unlockAudio } from './audio';
 import { useData } from './data';
 import { saveSettings } from './db';
 import { useNow } from './hooks';
+import { Overlay } from './ui';
 import { useWakeLock } from './wakeLock';
 
 interface Props {
@@ -83,7 +84,7 @@ export function HoldClock({ title, subtitle, onSave, onClose }: Props) {
   const patch = (p: Partial<typeof hold>) => void saveSettings({ holdClock: { ...hold, ...p } });
 
   return (
-    <div className="hold" role="dialog" aria-label="Holdeklokke">
+    <Overlay label="Holdeklokke" className="hold">
       <header className="hold-head">
         <div>
           <div className="hold-title">{title}</div>
@@ -157,6 +158,6 @@ export function HoldClock({ title, subtitle, onSave, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

@@ -17,6 +17,13 @@ export function audioContext(): AudioContext | null {
 export function unlockAudio(): void {
   const c = audioContext();
   if (!c) return;
+  // Nyere Safari: «playback» gjør at lyden også kommer når lydbryteren på iPhone står på lydløs.
+  try {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (session && session.type !== 'playback') session.type = 'playback';
+  } catch {
+    // ikke støttet
+  }
   if (c.state !== 'running') void c.resume();
   // Et stille lydklipp fra et trykk låser opp avspilling i Safari.
   const src = c.createBufferSource();
