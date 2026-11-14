@@ -27,6 +27,7 @@ class StigeDB extends Dexie {
   routines!: EntityTable<Routine, 'id'>;
   diary!: EntityTable<DiaryNote, 'date'>;
   kv!: Table<KV, string>;
+  synced!: Table<{ key: string; print: string }, string>;
 
   constructor() {
     super('stige');
@@ -37,6 +38,8 @@ class StigeDB extends Dexie {
       diary: 'date',
       kv: 'key',
     });
+    // Versjon 2: fingeravtrykk av det som sist ble synket (se sync.ts).
+    this.version(2).stores({ synced: 'key' });
     // Første oppstart: legg inn startbiblioteket og rutinene A, B og C.
     this.on('populate', (tx) => {
       const exercises = seedExercises();

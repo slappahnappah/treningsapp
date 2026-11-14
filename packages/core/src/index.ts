@@ -11,3 +11,4 @@ export * from './dates';
 export * from './summary';
 export * from './progression';
 export * from './backup';
+export * from './sync';

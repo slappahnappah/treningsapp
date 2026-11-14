@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { audioContext, unlockAudio } from './audio';
+import { startSync } from './sync';
 import './styles.css';
 
 // Safari på iPhone slipper ikke gjennom lyd før brukeren har trykket på noe.
@@ -32,6 +33,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     });
   });
 }
+
+startSync();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

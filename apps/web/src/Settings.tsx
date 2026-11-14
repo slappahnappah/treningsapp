@@ -14,6 +14,7 @@ import { useData } from './data';
 import { db, getDeloadWeeks, saveSettings, setRestTimer } from './db';
 import { HoldClock } from './HoldClock';
 import { copyText, saveFile } from './share';
+import { saveSyncConfig, signIn, signOut, signUp, syncNow, useSync } from './sync';
 import { NumberField, Overlay, Sheet } from './ui';
 
 const PLATE_CHOICES = [25, 20, 15, 10, 5, 2.5, 1.25, 0.5];
@@ -158,6 +159,8 @@ export function SettingsTab() {
           Tilbakestill til standard
         </button>
       </section>
+
+      <SyncSection />
 
       <BackupSection />
 
@@ -334,6 +337,127 @@ function BackupSection() {
           </button>
         </Sheet>
       )}
+    </section>
+  );
+}
+
+const syncTime = new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+function SyncSection() {
+  const sync = useSync();
+  const [url, setUrl] = useState('');
+  const [key, setKey] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const run = async (fn: () => Promise<string | null | undefined>) => {
+    setBusy(true);
+    setMessage('');
+    try {
+      setMessage((await fn()) ?? '');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const canSubmit = email.includes('@') && password.length >= 6 && !busy;
+
+  return (
+    <section className="card">
+      <h2 className="card-title-static">Konto og synk</h2>
+
+      {!sync.configured && (
+        <>
+          <p className="muted small pad-x">
+            Logg inn for å få de samme dataene på alle enheter. Først må appen kobles til Supabase-prosjektet ditt. Lim inn
+            adressen og den offentlige nøkkelen fra prosjektets innstillinger.
+          </p>
+          <label className="form-row">
+            <span>Prosjektadresse (Project URL)</span>
+            <input className="text" inputMode="url" autoCapitalize="off" autoCorrect="off" placeholder="https://xxxx.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} />
+          </label>
+          <label className="form-row">
+            <span>Offentlig nøkkel (publishable eller anon key)</span>
+            <input className="text" autoCapitalize="off" autoCorrect="off" value={key} onChange={(e) => setKey(e.target.value)} />
+          </label>
+          <button
+            className="btn btn-primary btn-wide"
+            disabled={!/^https:\/\/.+/.test(url.trim()) || key.trim().length < 20}
+            onClick={() => saveSyncConfig(url, key)}
+          >
+            Koble til
+          </button>
+        </>
+      )}
+
+      {sync.configured && !sync.email && (
+        <>
+          <p className="muted small pad-x">
+            Logg inn med e-post og passord. Dataene på denne enheten beholdes og slås sammen med det som ligger på kontoen.
+          </p>
+          <label className="form-row">
+            <span>E-post</span>
+            <input className="text" type="email" autoComplete="email" autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label className="form-row">
+            <span>Passord (minst 6 tegn)</span>
+            <input className="text" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          <div className="grid-2">
+            <button className="btn btn-primary" disabled={!canSubmit} onClick={() => void run(() => signIn(email, password))}>
+              Logg inn
+            </button>
+            <button
+              className="btn"
+              disabled={!canSubmit}
+              onClick={() =>
+                void run(async () => {
+                  const r = await signUp(email, password);
+                  if (r.error) return r.error;
+                  return r.confirm ? 'Kontoen er opprettet. Bekreft e-posten med lenken du fikk, og logg inn etterpå.' : null;
+                })
+              }
+            >
+              Opprett konto
+            </button>
+          </div>
+          {!sync.builtIn && (
+            <button className="btn btn-wide btn-quiet" onClick={() => saveSyncConfig('', '')}>
+              Bytt Supabase-prosjekt
+            </button>
+          )}
+        </>
+      )}
+
+      {sync.configured && sync.email && (
+        <>
+          <p className="pad-x">
+            Innlogget som <strong>{sync.email}</strong>
+          </p>
+          <p className="muted small pad-x" role="status">
+            {sync.status === 'syncing'
+              ? 'Synker …'
+              : sync.status === 'error'
+                ? `Synken feilet: ${sync.error} Dataene ligger trygt på enheten, og appen prøver igjen.`
+                : sync.lastSyncAt
+                  ? `Sist synket ${syncTime.format(new Date(sync.lastSyncAt))}.`
+                  : 'Ikke synket ennå.'}
+          </p>
+          <div className="grid-2">
+            <button className="btn" disabled={sync.status === 'syncing'} onClick={() => void syncNow()}>
+              Synk nå
+            </button>
+            <button className="btn" onClick={() => void run(async () => (await signOut(), 'Du er logget ut. Dataene ligger fortsatt på denne enheten.'))}>
+              Logg ut
+            </button>
+          </div>
+        </>
+      )}
+
+      <p className="muted small pad-x" role="status">
+        {message}
+      </p>
     </section>
   );
 }
