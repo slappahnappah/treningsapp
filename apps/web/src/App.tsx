@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { DataProvider, useData } from './data';
 import { RestBar } from './RestBar';
-import { DiaryTab, ExercisesTab, RoutinesTab, SettingsTab, StartTab } from './tabs';
+import { DiaryTab } from './Diary';
+import { SettingsTab } from './Settings';
+import { ExercisesTab, RoutinesTab, StartTab } from './tabs';
 import { useWakeLock } from './wakeLock';
 
 type Tab = 'routines' | 'diary' | 'start' | 'exercises' | 'settings';

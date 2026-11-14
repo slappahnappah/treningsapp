@@ -2,16 +2,20 @@ import {
   computeRestBeforeSec,
   findPreviousSets,
   indexWithinKind,
+  dateKey,
+  plannedSetsFor,
   restDurationSec,
   shouldStartRest,
+  weekStartKey,
   type Exercise,
   type Routine,
   type SetEntry,
   type SetKind,
+  type WarmupSuggestion,
   type Workout,
   type WorkoutExercise,
 } from '@stige/core';
-import { db, setRestTimer } from './db';
+import { db, getDeloadWeeks, saveDeloadWeeks, setRestTimer } from './db';
 
 const uid = () => crypto.randomUUID();
 
@@ -42,12 +46,18 @@ function newSets(exercise: Exercise, kind: SetKind, levelId?: string): SetEntry[
 
 /** Starter en økt, tom eller fra en rutine. Nivået hentes fra forrige gang når det finnes. */
 export async function startWorkout(routine?: Routine): Promise<string> {
-  const [workouts, exercises] = await Promise.all([db.workouts.toArray(), db.exercises.toArray()]);
+  const [workouts, exercises, deloadWeeks] = await Promise.all([
+    db.workouts.toArray(),
+    db.exercises.toArray(),
+    getDeloadWeeks(),
+  ]);
   const exMap = new Map(exercises.map((e) => [e.id, e]));
+  const now = new Date();
   const workout: Workout = {
     id: uid(),
-    startedAt: new Date().toISOString(),
-    isDeload: false,
+    startedAt: now.toISOString(),
+    // Økter i en uke som er markert som lettuke, blir lettuke-økter.
+    isDeload: deloadWeeks.includes(weekStartKey(now)),
     exercises: [],
   };
   if (routine) {
@@ -167,6 +177,7 @@ export async function toggleSet(
   setId: string,
   exercise: Exercise,
   fallback: SetPatch = {},
+  live = true,
 ): Promise<boolean> {
   let ok = true;
   let restSec = 0;
@@ -194,6 +205,11 @@ export async function toggleSet(
       return;
     }
     Object.assign(set, filled);
+    if (!live) {
+      // Retting av en ferdig økt: ingen tidsstempler, pause eller hviletimer.
+      set.done = true;
+      return;
+    }
     const now = new Date().toISOString();
     const rest = computeRestBeforeSec(w, weId, setId, now);
     set.done = true;
@@ -234,3 +250,83 @@ export async function setDeload(workoutId: string, isDeload: boolean): Promise<v
 export async function setDefaultRest(exerciseId: string, sec: number): Promise<void> {
   await db.exercises.update(exerciseId, { defaultRestSec: Math.max(0, sec) });
 }
+
+/** Legger oppvarmingssett først i øvelsen, med vekt og reps fra forslaget. */
+export async function addWarmupSets(workoutId: string, weId: string, suggestions: WarmupSuggestion[]): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const we = w.exercises.find((x) => x.id === weId);
+    if (!we) return;
+    const sets: SetEntry[] = suggestions.map((s) => ({
+      id: uid(),
+      kind: 'warmup',
+      weightKg: s.weightKg,
+      reps: s.reps,
+      done: false,
+    }));
+    const firstWorking = we.sets.findIndex((s) => s.kind !== 'warmup');
+    we.sets.splice(firstWorking === -1 ? we.sets.length : firstWorking, 0, ...sets);
+  });
+}
+
+/** Kobler øvelsen sammen med den neste til et supersett, eller løser den fra supersettet. */
+export async function toggleSuperset(workoutId: string, weId: string): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const list = [...w.exercises].sort((a, b) => a.order - b.order);
+    const i = list.findIndex((x) => x.id === weId);
+    const we = list[i];
+    if (!we) return;
+    if (we.supersetGroup) {
+      const group = we.supersetGroup;
+      delete we.supersetGroup;
+      const rest = list.filter((x) => x.supersetGroup === group);
+      if (rest.length === 1) delete rest[0]!.supersetGroup;
+      return;
+    }
+    const next = list[i + 1];
+    if (!next) return;
+    const group = next.supersetGroup ?? uid();
+    we.supersetGroup = group;
+    next.supersetGroup = group;
+  });
+}
+
+/** Markerer en hel uke som lettuke (eller fjerner markeringen), også for øktene i uka. */
+export async function setWeekDeload(weekStart: string, on: boolean): Promise<void> {
+  const weeks = await getDeloadWeeks();
+  await saveDeloadWeeks(on ? [...weeks, weekStart] : weeks.filter((w) => w !== weekStart));
+  await db.transaction('rw', db.workouts, async () => {
+    const all = await db.workouts.toArray();
+    for (const w of all) {
+      if (weekStartKey(w.startedAt) === weekStart && w.isDeload !== on) {
+        await db.workouts.update(w.id, { isDeload: on });
+      }
+    }
+  });
+}
+
+export async function saveNote(date: string, text: string): Promise<void> {
+  if (text.trim() === '') await db.diary.delete(date);
+  else await db.diary.put({ date, text });
+}
+
+/** Lager en rutine av en ferdig økt: samme øvelser, samme antall sett og samme nivå. */
+export async function saveAsRoutine(workout: Workout, name: string): Promise<void> {
+  const exercises = await db.exercises.toArray();
+  const routine: Routine = { id: uid(), name, exercises: [] };
+  for (const we of [...workout.exercises].sort((a, b) => a.order - b.order)) {
+    const ex = exercises.find((e) => e.id === we.exerciseId);
+    if (!ex) continue;
+    const count = (warm: boolean) =>
+      we.sets.filter((s) => (s.kind === 'warmup') === warm && s.side !== 'right').length;
+    const levelId = we.sets[0]?.levelId;
+    const planned = [...plannedSetsFor(ex, 'warmup', count(true)), ...plannedSetsFor(ex, 'working', count(false))].map(
+      (p) => (levelId ? { ...p, levelId } : p),
+    );
+    const re: Routine['exercises'][number] = { exerciseId: ex.id, order: routine.exercises.length, plannedSets: planned };
+    if (we.supersetGroup) re.supersetGroup = we.supersetGroup;
+    routine.exercises.push(re);
+  }
+  await db.routines.add(routine);
+}
+
+export { dateKey };

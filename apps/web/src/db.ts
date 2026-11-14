@@ -67,3 +67,12 @@ export async function setRestTimer(timer: RestTimer | undefined): Promise<void> 
   if (timer) await db.kv.put({ key: 'rest', value: timer });
   else await db.kv.delete('rest');
 }
+
+/** Uker markert som lettuke, som mandagens dato (YYYY-MM-DD). */
+export async function getDeloadWeeks(): Promise<string[]> {
+  return ((await db.kv.get('deloadWeeks'))?.value as string[] | undefined) ?? [];
+}
+
+export async function saveDeloadWeeks(weeks: string[]): Promise<void> {
+  await db.kv.put({ key: 'deloadWeeks', value: [...new Set(weeks)].sort() });
+}

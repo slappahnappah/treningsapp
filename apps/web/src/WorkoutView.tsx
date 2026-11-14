@@ -26,12 +26,14 @@ import {
   setDeload,
   setKind,
   toggleSet,
+  toggleSuperset,
   type SetPatch,
 } from './actions';
 import { useData } from './data';
 import { ExerciseDetail } from './ExerciseDetail';
 import { ExercisePicker } from './ExercisePicker';
 import { HoldClock } from './HoldClock';
+import { PlateSheet } from './PlateSheet';
 import { useNow } from './hooks';
 import { NumberField, Sheet } from './ui';
 
@@ -50,9 +52,24 @@ function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${rest.padStart(5, '0')}` : rest;
 }
 
-export function WorkoutView({ workout }: { workout: Workout }) {
-  const { exMap, workouts } = useData();
-  const now = useNow(1000);
+interface ViewProps {
+  workout: Workout;
+  /** Retting av en ferdig økt: ingen hviletimer, og ingenting fjernes ved lukking. */
+  editing?: boolean;
+  onClose?: () => void;
+  onFinished?: (workoutId: string) => void;
+}
+
+const editDate = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
+
+export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps) {
+  const { exMap, workouts: allWorkouts } = useData();
+  // «Forrige gang» skal bare se på økter før denne.
+  const workouts = useMemo(
+    () => allWorkouts.filter((w) => w.startedAt < workout.startedAt),
+    [allWorkouts, workout.startedAt],
+  );
+  const now = useNow(1000, !editing);
   const [picking, setPicking] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
 
@@ -65,7 +82,9 @@ export function WorkoutView({ workout }: { workout: Workout }) {
       <header className="workout-head">
         <div>
           <h1>{workout.title ?? 'Økt'}</h1>
-          <div className="muted tabular">{formatElapsed(now - Date.parse(workout.startedAt))}</div>
+          <div className="muted tabular">
+            {editing ? `Retter økta fra ${editDate.format(new Date(workout.startedAt))}` : formatElapsed(now - Date.parse(workout.startedAt))}
+          </div>
         </div>
         <div className="row-gap">
           <button
@@ -75,8 +94,8 @@ export function WorkoutView({ workout }: { workout: Workout }) {
           >
             Lettuke
           </button>
-          <button className="btn btn-primary" onClick={() => setConfirm('finish')}>
-            Fullfør
+          <button className="btn btn-primary" onClick={() => (editing ? onClose?.() : setConfirm('finish'))}>
+            {editing ? 'Ferdig' : 'Fullfør'}
           </button>
         </div>
       </header>
@@ -84,7 +103,7 @@ export function WorkoutView({ workout }: { workout: Workout }) {
       {workout.exercises.map((we) => {
         const exercise = exMap.get(we.exerciseId);
         if (!exercise) return null;
-        return <ExerciseCard key={we.id} workout={workout} we={we} exercise={exercise} workouts={workouts} />;
+        return <ExerciseCard key={we.id} workout={workout} we={we} exercise={exercise} workouts={workouts} live={!editing} />;
       })}
 
       {workout.exercises.length === 0 && (
@@ -94,9 +113,11 @@ export function WorkoutView({ workout }: { workout: Workout }) {
       <button className="btn btn-wide" onClick={() => setPicking(true)}>
         + Legg til øvelse
       </button>
-      <button className="btn btn-wide btn-danger-text" onClick={() => setConfirm('discard')}>
-        Forkast økta
-      </button>
+      {!editing && (
+        <button className="btn btn-wide btn-danger-text" onClick={() => setConfirm('discard')}>
+          Forkast økta
+        </button>
+      )}
 
       {picking && (
         <ExercisePicker
@@ -121,7 +142,8 @@ export function WorkoutView({ workout }: { workout: Workout }) {
             className="btn btn-primary btn-wide"
             onClick={() => {
               setConfirm(null);
-              void (doneCount === 0 ? deleteWorkout(workout.id) : finishWorkout(workout.id));
+              if (doneCount === 0) void deleteWorkout(workout.id);
+              else void finishWorkout(workout.id).then(() => onFinished?.(workout.id));
             }}
           >
             {doneCount === 0 ? 'Avslutt uten å lagre' : 'Fullfør økta'}
@@ -158,10 +180,12 @@ interface CardProps {
   we: WorkoutExercise;
   exercise: Exercise;
   workouts: Workout[];
+  live: boolean;
 }
 
-function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
+function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
   const [menu, setMenu] = useState(false);
+  const [plates, setPlates] = useState(false);
   const [detail, setDetail] = useState(false);
   const prev = useMemo(
     () => findPreviousSets(workouts, exercise.id, workout.id),
@@ -186,6 +210,7 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
         <button className="card-title" onClick={() => setMenu(true)}>
           {exercise.name}
           <span className="muted small"> · hvile {formatClock(exercise.defaultRestSec)}</span>
+          {we.supersetGroup && <span className="chip chip-on chip-small">Supersett</span>}
         </button>
         <button className="icon-btn" onClick={() => setMenu(true)} aria-label={`Valg for ${exercise.name}`}>
           ⋯
@@ -214,6 +239,7 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
             set={s}
             label={labels[i] ?? ''}
             prev={prev}
+            live={live}
           />
         ))}
       </div>
@@ -245,6 +271,28 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
           >
             Historikk, grafer og rekorder
           </button>
+          {exercise.type === 'weight_reps' && exercise.equipment === 'barbell' && (
+            <button
+              className="btn btn-wide"
+              onClick={() => {
+                setMenu(false);
+                setPlates(true);
+              }}
+            >
+              Platekalkulator og oppvarming
+            </button>
+          )}
+          {(we.supersetGroup || workout.exercises.some((x) => x.order > we.order)) && (
+            <button
+              className="btn btn-wide"
+              onClick={() => {
+                setMenu(false);
+                void toggleSuperset(workout.id, we.id);
+              }}
+            >
+              {we.supersetGroup ? 'Ta øvelsen ut av supersettet' : 'Supersett med neste øvelse'}
+            </button>
+          )}
           <button
             className="btn btn-danger btn-wide"
             onClick={() => {
@@ -260,6 +308,19 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
         </Sheet>
       )}
       {detail && <ExerciseDetail exerciseId={exercise.id} onClose={() => setDetail(false)} />}
+      {plates && (
+        <PlateSheet
+          workout={workout}
+          we={we}
+          exercise={exercise}
+          initialKg={
+            we.sets.find((s) => !s.done && s.kind !== 'warmup')?.weightKg ??
+            [...we.sets].reverse().find((s) => s.kind !== 'warmup' && s.weightKg != null)?.weightKg ??
+            prev?.get('working', undefined, 0)?.weightKg
+          }
+          onClose={() => setPlates(false)}
+        />
+      )}
     </section>
   );
 }
@@ -278,9 +339,10 @@ interface RowProps {
   set: SetEntry;
   label: string;
   prev: PreviousSets | undefined;
+  live: boolean;
 }
 
-function SetRow({ workout, we, exercise, set, label, prev }: RowProps) {
+function SetRow({ workout, we, exercise, set, label, prev, live }: RowProps) {
   const [sheet, setSheet] = useState<'kind' | 'rpe' | null>(null);
   const [clock, setClock] = useState(false);
   const [shake, setShake] = useState(false);
@@ -306,7 +368,7 @@ function SetRow({ workout, we, exercise, set, label, prev }: RowProps) {
   const level = exercise.levels?.find((l) => l.id === set.levelId);
 
   const check = async (extra: SetPatch = {}) => {
-    const ok = await toggleSet(workout.id, we.id, set.id, exercise, { ...fallback, ...extra });
+    const ok = await toggleSet(workout.id, we.id, set.id, exercise, { ...fallback, ...extra }, live);
     if (!ok) {
       setShake(true);
       window.setTimeout(() => setShake(false), 400);

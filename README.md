@@ -11,12 +11,12 @@ Byggerekkefølgen står i kapittel 9 i [byggebriefen](docs/byggebrief.md).
 - [x] 1. Monorepo og `packages/core` med datamodell, formler og tester
 - [x] 2. Logging av økt med lokal lagring, forrige gang og settyper
 - [x] 3. Hviletimer og holdeklokke
-- [ ] 4. Øvelsesbibliotek, egne øvelser, nivåstiger og øvelsesside med rekorder og grafer
-- [ ] 5. Redigering av rutiner og maler, platekalkulator og oppvarmingsforslag
-- [ ] 6. Dagbok med kalender, notater og markering av lettuke
-- [ ] 7. Øktsammendrag med navnekobling for Whoop og Bevel
-- [ ] 8. Progresjon steg 1 (piler)
-- [ ] 9. Eksport og import som backup
+- [x] 4. Øvelsesbibliotek, egne øvelser, nivåstiger og øvelsesside med rekorder og grafer
+- [x] 5. Redigering av rutiner og maler, platekalkulator og oppvarmingsforslag
+- [x] 6. Dagbok med kalender, notater og markering av lettuke
+- [x] 7. Øktsammendrag med navnekobling for Whoop og Bevel
+- [x] 8. Progresjon steg 1 (piler)
+- [x] 9. Eksport og import som backup
 - [ ] 10. Backend, innlogging og synk
 
 ## Struktur
