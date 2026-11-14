@@ -50,7 +50,7 @@ Fordi kroppsvekt ikke registreres, kan appen ikke regne kilo for kroppsvektøvel
    - Tiden regnes fra lagret starttidspunkt, ikke ved å telle intervaller, så den stemmer hvis appen har vært i bakgrunnen.
    - Mulige tillegg: nedtelling før start (3, 2, 1) og måltid med signal.
 6. **Rutiner og maler** uten tak på antall. En økt kan startes tom eller fra en mal.
-7. **Øvelsesbibliotek pluss egne øvelser.** Hver øvelse har en type (se datamodell). Calisthenics-øvelser har en redigerbar **nivåstige**, for eksempel front lever: tuck → advanced tuck → one leg → straddle → full. For hvert sett velger man nivå og logger sekunder eller reps. Rekorder og historikk vises per nivå.
+7. **Øvelsesbibliotek pluss egne øvelser.** Hver øvelse har en type (se datamodell). Calisthenics-øvelser har **nummererte progresjoner**, P1–P5, som er like for alle slike øvelser. Høyere nummer betyr tyngre variant. Nivåene trenger ikke egne navn, men hvert nivå kan få en valgfri kort beskrivelse (for eksempel «P1 = tuck»). Man kan legge til eller fjerne nivåer per øvelse. For hvert sett velger man nivå og logger sekunder eller reps. Rekorder og historikk vises per nivå.
 8. **Settyper:** oppvarming, arbeidssett, drop set og failure, pluss supersett (øvelser gruppert og gjort annenhver).
 9. **Platekalkulator og oppvarmingsforslag.**
    - Platekalkulator: stang 20 kg som standard; tilgjengelige plater kan settes i innstillingene (forslag: 25, 20, 15, 10, 5, 2,5, 1,25 kg). Viser plater per side.
@@ -103,7 +103,12 @@ interface Exercise {
   archived: boolean;
 }
 
-interface Level { id: string; name: string; order: number }
+interface Level {
+  id: string;
+  order: number;             // 1, 2, 3 … – vises som P1, P2, P3 …
+  description?: string;      // valgfri, f.eks. «tuck» eller «ned og opp»
+}
+// Standard for nye level-øvelser: fem nivåer, P1–P5, uten beskrivelse.
 
 type SetKind = 'warmup' | 'working' | 'drop' | 'failure';
 
@@ -261,7 +266,7 @@ Pull-up: BW×8, BW×7, BW×6
 Working sets: 12 (incl. pull-ups) · Volume: 5 160 kg (weighted sets only, excl. pull-ups)
 ```
 
-Forslag til format for andre typer: hold `Front Lever (tuck): 12s, 10s, 9s`, assistert `Pull-up (assisted): BW−20×6`.
+Forslag til format for andre typer: hold `Front Lever (P1): 12s, 10s, 9s`, assistert `Pull-up (assisted): BW−20×6`.
 
 ### Navnekobling per app
 
@@ -274,7 +279,7 @@ Whoop og Bevel har ikke de samme øvelsene som appen, og de navngir øvelser uli
 
 ## 7. Startbibliotek og startrutiner
 
-Halfdans program består av tre økter (A, B og C) med en felles oppvarming. Disse legges inn som ferdige rutiner ved første oppstart. Antall sett, reps og hviletid er ikke oppgitt ennå, så rutinene starter med øvelsene i riktig rekkefølge, og Halfdan fyller inn resten første gang. Punkter merket **(tolket)** står i listen «Til bekreftelse» nederst i kapitlet.
+Halfdans program består av tre økter (A, B og C) med en felles oppvarming. Disse legges inn som ferdige rutiner ved første oppstart. Rutinene inneholder øvelsene i riktig rekkefølge, og sett, reps og hviletid fylles inn i appen. Alle punktene er avklart med Halfdan.
 
 ### Startrutiner
 
@@ -282,19 +287,19 @@ Halfdans program består av tre økter (A, B og C) med en felles oppvarming. Dis
 
 1. Pull-up
 2. Dips
-3. Handstand push-up på lav progresjon: pike push-up **(tolket)**
+3. Handstand push-up, på lav progresjon (for eksempel P1)
 4. Handstand hold
-5. Mageøvelse: hanging leg raise **(tolket)**
+5. Hanging leg raise
 
 **Økt A** (oppvarming + disse):
 
-1. Handstand hold
+1. Handstand hold (egne arbeidssett, i tillegg til oppvarmingssettet)
 2. Pistol squat (begge sider)
 3. Sissy squat
 4. One arm pull-up (begge sider)
-5. Single-leg hamstring curl, liggende (begge sider) **(tolket)**
+5. Enbeins hamstring curl, liggende (begge sider)
 6. Handstand push-up, chest to wall
-7. Headstand pike **(tolket)**
+7. Headstand pike
 8. Pseudo planche push-up
 9. Hanging leg raise
 
@@ -304,72 +309,62 @@ Halfdans program består av tre økter (A, B og C) med en felles oppvarming. Dis
 2. Chest-to-bar pull-up
 3. Handstand push-up, back to wall
 4. Dragon flag
-5. Nordic hamstring curl (variant) **(tolket)**
+5. Nordic hamstring curl
 6. One arm push-up (begge sider)
 
 **Økt C** (oppvarming + disse):
 
 1. Pull-up med ekstravekt
-2. Handstand push-up, back to wall **(tolket: «vanlig»)**
+2. Handstand push-up
 3. Pistol squat (begge sider)
 4. Sissy squat
-5. Front lever (variant) **(tolket)**
+5. Front lever (hold)
 6. Markløft
 7. Dips med ekstravekt
 
-Vektet pull-up og vektet dips er de samme øvelsene som pull-up og dips, logget med ekstravekt. Da samles historikk og rekorder på ett sted.
+Vektet pull-up og vektet dips er de samme øvelsene som pull-up og dips, logget med ekstravekt. Da samles historikk og rekorder på ett sted. Sett, reps og hvile fylles inn i appen første gang øktene gjøres.
 
 ### Øvelser i programmet
 
-| Øvelse (visningsnavn) | Type | Unilateral | Nivåstige (forslag, redigerbar) |
+Alle `level`-øvelser starter med P1–P5. Beskrivelsene i tabellen er valgfrie startbeskrivelser som Halfdan kan endre eller slette.
+
+| Øvelse (visningsnavn) | Type | Unilateral | Valgfri beskrivelse av nivåene (forslag) |
 |---|---|---|---|
 | Pull-up | `bodyweight` (ekstravekt) | nei | – |
 | Chest-to-bar pull-up | `bodyweight` | nei | – |
-| One arm pull-up | `level` (reps) | ja | assistert (strikk/hånd) → negativ → full |
+| One arm pull-up | `level` (reps) | ja | P1 assistert med strikk, P2 assistert med hånd, P3 negativ, P4 full |
 | Dips | `bodyweight` (ekstravekt) | nei | – |
-| Pike push-up | `bodyweight` | nei | – |
-| Handstand push-up, back to wall | `bodyweight` | nei | – |
-| Handstand push-up, chest to wall | `bodyweight` | nei | – |
-| Handstand hold | `level` (sekunder) | nei | mot vegg → frittstående |
-| Headstand pike | `bodyweight` | nei | – |
-| Pseudo planche push-up | `level` (reps) | nei | på knær → full → føttene hevet |
-| One arm push-up | `level` (reps) | ja | skrå → full |
-| Hanging leg raise | `level` (reps) | nei | bøyde knær → strake bein → toes to bar |
-| Dragon flag | `level` (reps) | nei | tuck → one leg → straddle → full |
-| Front lever | `level` (sekunder) | nei | tuck → advanced tuck → one leg → straddle → full |
-| Pistol squat | `level` (reps) | ja | assistert (holder i noe) → til benk → full → med vekt |
-| Sissy squat | `level` (reps) | nei | assistert (holder i stolpe) → frittstående |
-| Single-leg hamstring curl, liggende | `bodyweight` | ja | – |
-| Nordic hamstring curl | `level` (reps) | nei | negativ med strikk → negativ → full |
+| Handstand push-up | `level` (reps) | nei | – |
+| Handstand push-up, back to wall | `level` (reps) | nei | – |
+| Handstand push-up, chest to wall | `level` (reps) | nei | – |
+| Handstand hold | `level` (sekunder) | nei | – |
+| Headstand pike | `level` (reps) | nei | – |
+| Pseudo planche push-up | `level` (reps) | nei | – |
+| One arm push-up | `level` (reps) | ja | – |
+| Hanging leg raise | `level` (reps) | nei | – |
+| Dragon flag | `level` (reps) | nei | – |
+| Front lever (hold) | `level` (sekunder) | nei | P1 tuck, P2 advanced tuck, P3 one leg, P4 straddle, P5 full |
+| Pistol squat | `level` (reps) | ja | – |
+| Sissy squat | `level` (reps) | nei | – |
+| Enbeins hamstring curl, liggende | `level` (reps) | ja | – |
+| Nordic hamstring curl | `level` (reps) | nei | P1 bare ned (negativ, beina festet under en vekt), høyere nivåer ned og opp |
 | Knebøy (stang) | `weight_reps` | nei | – |
 | Markløft | `weight_reps` | nei | – |
 
-Hovedøvelser (`isMainLift`) **(forslag)**: knebøy, markløft, pull-up, dips og handstand push-up (begge varianter).
+Forklaring på to av øvelsene:
+
+- **Headstand pike:** fra strak hodestående senkes strake bein med full hoftefleksjon ned til gulvet og løftes opp igjen til strak hodestående.
+- **Enbeins hamstring curl, liggende:** liggende på ryggen med strake bein trekkes én fot inn under kroppen som en hamstring curl, mens hoftene holdes oppe. Gjøres på begge sider.
+
+Hovedøvelser (`isMainLift`) **(forslag)**: knebøy, markløft, pull-up, dips og handstand push-up (alle tre varianter).
 
 ### Resten av startbiblioteket
 
-Disse fra tavla legges også inn, så de finnes når de trengs:
+Disse fra tavla legges også inn, så de finnes når de trengs. Calisthenics-øvelsene får P1–P5 som standard.
 
 **Styrke:** frontknebøy, rumensk markløft, benkpress, skråbenk, skulderpress, roing, nedtrekk, hip thrust, utfall, bulgarsk splittknebøy, leg curl, leg extension, biceps curl, triceps pushdown, sidehev, face pull, tåhev.
 
-**Calisthenics:** chin-up, eksplosiv pull-up, muscle-up, ringdips, push-up, front lever raise, planche hold, planche push-up, frittstående handstand push-up, L-sit.
-
-| Øvelse | Nivåer (forslag) |
-|---|---|
-| Front lever raise | tuck → advanced tuck → one leg → straddle → full |
-| Planche (hold/push-up) | lean → tuck → advanced tuck → straddle → full |
-
-### Til bekreftelse (tolket)
-
-1. **Mageøvelse i oppvarmingen:** tolket som hanging leg raise. Er det samme mageøvelse i B og C, eller en annen?
-2. **HSPU på lav progresjon i oppvarmingen:** tolket som pike push-up. Stemmer det, eller er det en annen variant?
-3. **«Vanlig» HSPU i økt C:** tolket som back to wall, som i økt B. Eller mener du frittstående?
-4. **Enbeins hamstring-øvelsen i økt A:** tolket som liggende på ryggen med strake bein, der én fot trekkes inn under deg som en hamstring curl (for eksempel på sokk eller glidebrett). Hva vil du kalle den?
-5. **Hodestående med hoftefleksjon i økt A:** kalt «Headstand pike» (fra strak hodestående, senke strake bein til gulvet og løfte opp igjen). Passer navnet?
-6. **Nordic curl-varianten i økt B:** hvilken variant (for eksempel bare negativ, med strikk eller full)?
-7. **Front lever-varianten i økt C:** er det hold eller raise, og på hvilket nivå?
-8. **Handstand hold** står både i oppvarmingen og først i økt A. Er det riktig at det er to omganger?
-9. **Sett, reps og hvile** per øvelse er ikke oppgitt. Fylles inn i appen første gang, eller vil du gi dem nå?
+**Calisthenics:** chin-up, eksplosiv pull-up, muscle-up, ringdips, push-up, front lever raise, planche hold, planche push-up, L-sit.
 
 ## 8. Arkitektur (anbefalt)
 
@@ -423,5 +418,4 @@ Safari på iPhone kan stoppe lyd og tidtakere når skjermen låses eller appen g
 ## 11. Åpne spørsmål
 
 - Navn på appen og visuell stil.
-- Bekrefte de tolkede punktene i kapittel 7 («Til bekreftelse»).
 - Hvor backend skal ligge, og hvilken innlogging som skal brukes (trengs først i trinn 10).
