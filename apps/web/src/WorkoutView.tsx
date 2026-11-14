@@ -29,6 +29,7 @@ import {
   type SetPatch,
 } from './actions';
 import { useData } from './data';
+import { ExerciseDetail } from './ExerciseDetail';
 import { ExercisePicker } from './ExercisePicker';
 import { HoldClock } from './HoldClock';
 import { useNow } from './hooks';
@@ -161,6 +162,7 @@ interface CardProps {
 
 function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
   const [menu, setMenu] = useState(false);
+  const [detail, setDetail] = useState(false);
   const prev = useMemo(
     () => findPreviousSets(workouts, exercise.id, workout.id),
     [workouts, exercise.id, workout.id],
@@ -235,6 +237,15 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
             </div>
           </div>
           <button
+            className="btn btn-wide"
+            onClick={() => {
+              setMenu(false);
+              setDetail(true);
+            }}
+          >
+            Historikk, grafer og rekorder
+          </button>
+          <button
             className="btn btn-danger btn-wide"
             onClick={() => {
               setMenu(false);
@@ -248,6 +259,7 @@ function ExerciseCard({ workout, we, exercise, workouts }: CardProps) {
           </button>
         </Sheet>
       )}
+      {detail && <ExerciseDetail exerciseId={exercise.id} onClose={() => setDetail(false)} />}
     </section>
   );
 }

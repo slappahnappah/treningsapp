@@ -5,6 +5,7 @@ import {
   formatSet,
   workoutVolume,
   workoutWorkingSets,
+  type Exercise,
   type Routine,
   type Workout,
 } from '@stige/core';
@@ -12,6 +13,8 @@ import { deleteWorkout, startWorkout } from './actions';
 import { restDoneSignal, unlockAudio } from './audio';
 import { useData } from './data';
 import { saveSettings, setRestTimer } from './db';
+import { ExerciseDetail } from './ExerciseDetail';
+import { ExerciseEditor, newExercise } from './ExerciseEditor';
 import { typeLabel, useExerciseSearch } from './ExercisePicker';
 import { HoldClock } from './HoldClock';
 import { Sheet } from './ui';
@@ -176,11 +179,21 @@ export function DiaryTab() {
 }
 
 export function ExercisesTab() {
+  const { exercises } = useData();
   const [query, setQuery] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState<Exercise | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const list = useExerciseSearch(query);
+  const archived = exercises.filter((e) => e.archived);
   return (
     <div className="page">
-      <h1>Øvelser</h1>
+      <header className="workout-head">
+        <h1>Øvelser</h1>
+        <button className="btn btn-primary" onClick={() => setCreating(newExercise())}>
+          + Ny øvelse
+        </button>
+      </header>
       <input
         className="search"
         type="search"
@@ -189,19 +202,27 @@ export function ExercisesTab() {
         onChange={(e) => setQuery(e.target.value)}
       />
       <ul className="list">
-        {list.map((e) => (
-          <li key={e.id} className="list-item list-static">
-            <span>
-              {e.name}
-              {e.unilateral && <span className="muted small"> · per side</span>}
-            </span>
-            <span className="muted small">
-              {typeLabel(e)} · {formatClock(e.defaultRestSec)}
-            </span>
+        {(showArchived ? archived : list).map((e) => (
+          <li key={e.id}>
+            <button className="list-item" onClick={() => setOpenId(e.id)}>
+              <span>
+                {e.name}
+                {e.unilateral && <span className="muted small"> · per side</span>}
+              </span>
+              <span className="muted small">
+                {typeLabel(e)} · {formatClock(e.defaultRestSec)}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
-      <p className="muted small">Øvelsesside med historikk, grafer og rekorder kommer i et senere trinn.</p>
+      {archived.length > 0 && (
+        <button className="btn btn-wide btn-quiet" onClick={() => setShowArchived(!showArchived)}>
+          {showArchived ? 'Vis aktive øvelser' : `Vis arkiverte øvelser (${archived.length})`}
+        </button>
+      )}
+      {openId && <ExerciseDetail exerciseId={openId} onClose={() => setOpenId(null)} />}
+      {creating && <ExerciseEditor exercise={creating} isNew onClose={() => setCreating(null)} />}
     </div>
   );
 }
