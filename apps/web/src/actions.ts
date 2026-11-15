@@ -236,9 +236,30 @@ export async function finishWorkout(workoutId: string): Promise<void> {
   await setRestTimer(undefined);
 }
 
+/** Sletter en økt. Hviletimeren stoppes bare når det er økta som er i gang som slettes. */
 export async function deleteWorkout(workoutId: string): Promise<void> {
+  const w = await db.workouts.get(workoutId);
   await db.workouts.delete(workoutId);
-  await setRestTimer(undefined);
+  if (!w || !w.endedAt) await setRestTimer(undefined);
+}
+
+/** Sletter en øvelse uten historikk, og tar den ut av rutinene den står i. */
+export async function deleteExercise(exerciseId: string): Promise<void> {
+  await db.transaction('rw', db.exercises, db.routines, async () => {
+    await db.exercises.delete(exerciseId);
+    for (const r of await db.routines.toArray()) {
+      if (!r.exercises.some((e) => e.exerciseId === exerciseId)) continue;
+      const exercises = r.exercises
+        .filter((e) => e.exerciseId !== exerciseId)
+        .sort((a, b) => a.order - b.order)
+        .map((e, i) => ({ ...e, order: i }));
+      // Et supersett med bare én øvelse igjen er ikke lenger et supersett.
+      for (const e of exercises) {
+        if (e.supersetGroup && exercises.filter((x) => x.supersetGroup === e.supersetGroup).length < 2) delete e.supersetGroup;
+      }
+      await db.routines.put({ ...r, exercises });
+    }
+  });
 }
 
 export async function setDeload(workoutId: string, isDeload: boolean): Promise<void> {

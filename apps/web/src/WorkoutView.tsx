@@ -142,7 +142,7 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
         <Sheet title="Fullføre økta?" onClose={() => setConfirm(null)}>
           <p className="muted">
             {doneCount === 0
-              ? 'Ingen sett er haket av ennå. Økta lagres tom.'
+              ? 'Ingen sett er haket av ennå, så økta blir ikke lagret.'
               : openCount > 0
                 ? `${doneCount} sett er haket av. ${openCount} sett uten hake blir ikke lagret.`
                 : `Alle ${doneCount} sett er haket av.`}
