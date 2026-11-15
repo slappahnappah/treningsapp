@@ -72,6 +72,7 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
   const now = useNow(1000, !editing);
   const [picking, setPicking] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
+  const [freeClock, setFreeClock] = useState(false);
 
   const all = workout.exercises.flatMap((we) => we.sets);
   const doneCount = all.filter((s) => s.done).length;
@@ -87,6 +88,11 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
           </div>
         </div>
         <div className="row-gap">
+          {!editing && (
+            <button className="chip" onClick={() => setFreeClock(true)} aria-label="Åpne holdeklokka">
+              ⏱ Klokke
+            </button>
+          )}
           <button
             className={`chip${workout.isDeload ? ' chip-on' : ''}`}
             aria-pressed={workout.isDeload}
@@ -118,6 +124,8 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
           Forkast økta
         </button>
       )}
+
+      {freeClock && <HoldClock title="Holdeklokke" subtitle="Fri bruk" onClose={() => setFreeClock(false)} />}
 
       {picking && (
         <ExercisePicker
