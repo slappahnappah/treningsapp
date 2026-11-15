@@ -1,6 +1,6 @@
 import { levelLabel } from './defaults';
 import { formatNumber } from './format';
-import { isWorkingSet, setE1RM, setVolume } from './formulas';
+import { isWorkingSet, setE1RM, setE1RMPlain, setE1RMRpe, setVolume } from './formulas';
 import type { Exercise, SetEntry, Side, Workout } from './model';
 
 export interface ExerciseSession {
@@ -29,7 +29,7 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string): Exerci
 }
 
 export interface RecordEntry {
-  kind: 'e1rm' | 'heaviest' | 'most_reps' | 'most_weight' | 'least_assistance' | 'longest_hold';
+  kind: 'e1rm' | 'e1rm_rpe' | 'heaviest' | 'most_reps' | 'most_weight' | 'least_assistance' | 'longest_hold';
   label: string;
   display: string;
   value: number;
@@ -138,8 +138,11 @@ function recordsFor(exercise: Exercise, items: Candidate[]): RecordEntry[] {
   const seconds = exercise.type === 'time' || (exercise.type === 'level' && exercise.levelMetric === 'seconds');
 
   if (exercise.type === 'weight_reps') {
-    push('e1rm', 'Estimert 1RM', best(items, setE1RM), (s, v) =>
+    push('e1rm', 'Estimert 1RM uten RPE', best(items, setE1RMPlain), (s, v) =>
       `${formatNumber(Math.round(v * 10) / 10)} kg (${formatNumber(kg(s))}×${reps(s)})`,
+    );
+    push('e1rm_rpe', 'Estimert 1RM med RPE', best(items, setE1RMRpe), (s, v) =>
+      `${formatNumber(Math.round(v * 10) / 10)} kg (${formatNumber(kg(s))}×${reps(s)}, RPE ${formatNumber(s.rpe ?? 10)})`,
     );
     push('heaviest', 'Tyngste sett', best(items, (s) => (reps(s) > 0 ? kg(s) : undefined), reps), (s) =>
       `${formatNumber(kg(s))} kg × ${reps(s)}`,
@@ -187,9 +190,13 @@ function series(sessions: ExerciseSession[], value: (session: ExerciseSession) =
 
 const working = (session: ExerciseSession) => session.sets.filter((s) => s.done && isWorkingSet(s));
 
-/** Estimert 1RM for beste arbeidssett i hver økt, eldste først. */
-export function e1rmSeries(sessions: ExerciseSession[]): SeriesPoint[] {
-  return series(sessions, (s) => Math.max(0, ...working(s).map(setE1RM)));
+/**
+ * Estimert 1RM for beste arbeidssett i hver økt, eldste først. `plain` ser bort
+ * fra RPE, `rpe` tar bare med sett med RPE, og `auto` bruker RPE der den finnes.
+ */
+export function e1rmSeries(sessions: ExerciseSession[], mode: 'auto' | 'plain' | 'rpe' = 'auto'): SeriesPoint[] {
+  const f = mode === 'plain' ? setE1RMPlain : mode === 'rpe' ? setE1RMRpe : setE1RM;
+  return series(sessions, (s) => Math.max(0, ...working(s).map(f)));
 }
 
 /** Volum per økt, eldste først. */

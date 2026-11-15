@@ -128,6 +128,19 @@ describe('grafserier', () => {
     ],
     'ex-back-squat',
   );
+  it('to anslag for 1RM: uten RPE og med RPE', () => {
+    const h = exerciseHistory(
+      [workout('2026-11-01', 'ex-back-squat', [set({ weightKg: 100, reps: 5, rpe: 8 }), set({ weightKg: 105, reps: 5 })])],
+      'ex-back-squat',
+    );
+    const [group] = exerciseRecords(ex('ex-back-squat'), h);
+    const byKind = Object.fromEntries(group!.records.map((r) => [r.kind, r]));
+    expect(byKind.e1rm?.display).toBe('122,5 kg (105×5)');
+    expect(byKind.e1rm_rpe?.display).toBe('123,3 kg (100×5, RPE 8)');
+    expect(e1rmSeries(h, 'plain')[0]?.value).toBeCloseTo(122.5, 6);
+    expect(e1rmSeries(h, 'rpe')[0]?.value).toBeCloseTo(100 * (1 + 7 / 30), 6);
+  });
+
   it('estimert 1RM per økt, eldste først, med RPE når den er logget', () => {
     const s = e1rmSeries(sessions);
     expect(s.map((p) => p.date.slice(0, 10))).toEqual(['2026-11-01', '2026-11-08']);

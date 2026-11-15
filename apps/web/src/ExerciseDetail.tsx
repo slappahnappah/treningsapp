@@ -134,7 +134,13 @@ function Charts({ exercise }: { exercise: Exercise }) {
   if (exercise.type === 'weight_reps') {
     return (
       <>
-        <LineChart title="Estimert 1RM" unit="kg" points={e1rmSeries(sessions)} />
+        <LineChart title="Estimert 1RM uten RPE" unit="kg" points={e1rmSeries(sessions, 'plain')} />
+        <LineChart title="Estimert 1RM med RPE" unit="kg" points={e1rmSeries(sessions, 'rpe')} />
+        <p className="muted small pad-x">
+          Uten RPE: vekt × (1 + reps / 30). Med RPE legges repsene du hadde igjen til: vekt × (1 + (reps + 10 − RPE) / 30).
+          Grafen med RPE tar bare med sett der RPE er ført inn. Anslagene er mest treffsikre for sett på 10 reps eller
+          færre.
+        </p>
         <LineChart title="Volum per økt" unit="kg" points={volumeSeries(exercise, sessions)} />
       </>
     );
