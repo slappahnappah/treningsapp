@@ -18,7 +18,6 @@ export type Equipment =
   | 'rings'
   | 'other';
 
-// Brukes først senere (volum per muskelgruppe).
 export type Muscle =
   | 'chest'
   | 'front_delts'
@@ -55,6 +54,7 @@ export interface Exercise {
   isMainLift: boolean;
   externalNames: { whoop?: string; bevel?: string };
   muscles?: { direct: Muscle[]; indirect: Muscle[] };
+  notes?: string; // f.eks. setehøyde eller grep, vises når øvelsen logges
   isCustom: boolean;
   archived: boolean;
 }

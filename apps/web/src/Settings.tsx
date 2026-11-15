@@ -22,6 +22,18 @@ const THRESHOLD_LABELS: [keyof Settings['thresholds'], string][] = [
   ['restDiffSec', 'Like økter: maks avvik i snittpause (sekunder)'],
   ['restDiffPct', 'Like økter: maks avvik i snittpause (prosent)'],
   ['rpeDiff', 'RPE-endring som teller som bedre eller dårligere'],
+  ['trendSessions', 'Trend: antall like økter som regnes med'],
+  ['trendProgressPctPerWeek', 'Trend: progresjon over (prosent per uke)'],
+  ['trendPlateauPctPerWeek', 'Trend: platå innenfor (prosent per uke)'],
+  ['trendPlateauWeeks', 'Trend: platå må vare minst (uker)'],
+  ['trendDeclinePctPerWeek', 'Trend: nedgang under minus (prosent per uke)'],
+  ['declineSessionsInRow', 'Trend: tilbakegang på rad som teller som nedgang (økter)'],
+  ['deloadDeclineSharePct', 'Lettuke: andel øvelser med nedgang (prosent)'],
+  ['deloadWindowDays', 'Lettuke: perioden andelen regnes over (dager)'],
+  ['deloadMainLiftSessions', 'Lettuke: hovedøvelse med tilbakegang på rad (økter)'],
+  ['deloadRpeSessions', 'Lettuke: økter RPE-stigningen måles over'],
+  ['deloadWeeksSinceLast', 'Lettuke: uker siden forrige lettuke'],
+  ['deloadSignalsNeeded', 'Lettuke: antall signaler som må slå ut'],
 ];
 
 export function SettingsTab() {

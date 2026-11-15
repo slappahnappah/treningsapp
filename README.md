@@ -19,6 +19,12 @@ Byggerekkefølgen står i kapittel 9 i [byggebriefen](docs/byggebrief.md).
 - [x] 9. Eksport og import som backup
 - [x] 10. Innlogging og synk mellom enheter (Supabase). Se [oppsettet](docs/synk-oppsett.md).
 
+Fra «Senere»-lista i briefen:
+
+- [x] Trend per øvelse og varsel om lettuke (progresjon steg 2 og 3)
+- [x] Volum per muskelgruppe per uke, med muskelkart
+- [x] Notater per øvelse
+
 ## Struktur
 
 ```

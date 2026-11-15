@@ -251,6 +251,15 @@ export async function setDefaultRest(exerciseId: string, sec: number): Promise<v
   await db.exercises.update(exerciseId, { defaultRestSec: Math.max(0, sec) });
 }
 
+export async function setExerciseNotes(exerciseId: string, notes: string): Promise<void> {
+  const ex = await db.exercises.get(exerciseId);
+  if (!ex) return;
+  const next = { ...ex };
+  if (notes.trim()) next.notes = notes;
+  else delete next.notes;
+  await db.exercises.put(next);
+}
+
 /** Legger oppvarmingssett først i øvelsen, med vekt og reps fra forslaget. */
 export async function addWarmupSets(workoutId: string, weId: string, suggestions: WarmupSuggestion[]): Promise<void> {
   await mutateWorkout(workoutId, (w) => {

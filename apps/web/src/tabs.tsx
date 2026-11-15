@@ -4,6 +4,7 @@ import { startWorkout } from './actions';
 import { useData } from './data';
 import { WorkoutCard } from './Diary';
 import { ExerciseDetail } from './ExerciseDetail';
+import { DeloadBanner } from './Insights';
 import { ExerciseEditor, newExercise } from './ExerciseEditor';
 import { typeLabel, useExerciseSearch } from './ExercisePicker';
 import { RoutineEditor, newRoutine } from './RoutineEditor';
@@ -20,6 +21,7 @@ export function StartTab() {
   return (
     <div className="page">
       <h1>Start økt</h1>
+      <DeloadBanner />
       <button className="btn btn-primary btn-big" onClick={() => void startWorkout()}>
         Start tom økt
       </button>
