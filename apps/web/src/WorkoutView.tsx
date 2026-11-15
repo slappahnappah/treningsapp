@@ -91,7 +91,7 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
         <div className="row-gap">
           {!editing && (
             <button className="chip" onClick={() => setFreeClock(true)} aria-label="Åpne holdeklokka">
-              ⏱ Klokke
+              ⏱<span className="chip-label-wide"> Klokke</span>
             </button>
           )}
           <button
