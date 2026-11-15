@@ -110,7 +110,7 @@ export function HoldClock({ title, subtitle, onSave, onClose }: Props) {
               Lagre {result} s
             </button>
           ) : (
-            <span className="hold-save muted">Testmodus: tiden lagres ikke</span>
+            <span className="hold-save muted">Tiden lagres ikke herfra</span>
           )}
           <button className="btn" onClick={() => setResult(result + 1)} aria-label="Ett sekund mer">
             +1
