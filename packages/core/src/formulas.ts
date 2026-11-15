@@ -20,6 +20,18 @@ export function setE1RM(set: SetEntry): number {
     : epley1RM(set.weightKg, set.reps);
 }
 
+/** Estimert 1RM uten RPE: ren Epley på vekt og reps. */
+export function setE1RMPlain(set: SetEntry): number {
+  if (set.weightKg == null || set.reps == null) return 0;
+  return epley1RM(set.weightKg, set.reps);
+}
+
+/** Estimert 1RM med RPE. Gir 0 for sett uten RPE. */
+export function setE1RMRpe(set: SetEntry): number {
+  if (set.weightKg == null || set.reps == null || set.rpe == null) return 0;
+  return epley1RMWithRpe(set.weightKg, set.reps, set.rpe);
+}
+
 /** Alt unntatt oppvarming teller som arbeidssett (arbeidssett, drop set og failure). */
 export function isWorkingSet(set: SetEntry): boolean {
   return set.kind !== 'warmup';
