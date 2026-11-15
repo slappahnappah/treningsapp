@@ -210,7 +210,7 @@ const WEEK_METRICS: { id: 'workouts' | 'workingSets' | 'volumeKg' | 'minutes'; l
   { id: 'minutes', label: 'Tid', unit: 'min' },
 ];
 const WEEK_COUNT = 12;
-const thousands = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const thousands = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 
 /** Ukeoversikt: økter, arbeidssett, volum og tid per uke de siste tolv ukene. */
 export function WeekOverviewCard() {
