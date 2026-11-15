@@ -17,7 +17,7 @@ Byggerekkefølgen står i kapittel 9 i [byggebriefen](docs/byggebrief.md).
 - [x] 7. Øktsammendrag med navnekobling for Whoop og Bevel
 - [x] 8. Progresjon steg 1 (piler)
 - [x] 9. Eksport og import som backup
-- [ ] 10. Backend, innlogging og synk
+- [x] 10. Innlogging og synk mellom enheter (Supabase). Se [oppsettet](docs/synk-oppsett.md).
 
 ## Struktur
 
