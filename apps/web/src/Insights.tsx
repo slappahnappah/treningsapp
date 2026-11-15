@@ -8,10 +8,12 @@ import {
   isoWeek,
   weekStartKey,
   weeklyMuscleVolume,
+  weeklyStats,
   type Exercise,
   type Muscle,
   type MuscleVolume,
   type TrendStatus,
+  type WeekStats,
 } from '@stige/core';
 import { setWeekDeload } from './actions';
 import { useData } from './data';
@@ -197,6 +199,88 @@ export function MuscleVolumeCard({ weekStart }: { weekStart: string }) {
           </p>
         </>
       )}
+    </section>
+  );
+}
+
+const WEEK_METRICS: { id: 'workouts' | 'workingSets' | 'volumeKg' | 'minutes'; label: string; unit: string }[] = [
+  { id: 'workouts', label: 'Økter', unit: 'økter' },
+  { id: 'workingSets', label: 'Sett', unit: 'arbeidssett' },
+  { id: 'volumeKg', label: 'Volum', unit: 'kg' },
+  { id: 'minutes', label: 'Tid', unit: 'min' },
+];
+const WEEK_COUNT = 12;
+const thousands = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+/** Ukeoversikt: økter, arbeidssett, volum og tid per uke de siste tolv ukene. */
+export function WeekOverviewCard() {
+  const { finished, exMap, deloadWeeks } = useData();
+  const stats = useMemo(
+    () => weeklyStats(finished, (id) => exMap.get(id), { count: WEEK_COUNT, deloadWeeks }),
+    [finished, exMap, deloadWeeks],
+  );
+  const [metric, setMetric] = useState<(typeof WEEK_METRICS)[number]['id']>('workingSets');
+  const [picked, setPicked] = useState<number | null>(null);
+  const active = picked ?? stats.length - 1;
+  const week = stats[active] as WeekStats;
+  const max = Math.max(1, ...stats.map((s) => s[metric]));
+  const W = 340;
+  const H = 150;
+  const top = 8;
+  const bottom = 22;
+  const slot = W / stats.length;
+  const barW = slot * 0.62;
+  const trained = stats.filter((s) => s.workouts > 0);
+  const avg = (f: (s: WeekStats) => number) => (trained.length ? trained.reduce((a, s) => a + f(s), 0) / trained.length : 0);
+
+  return (
+    <section className="card">
+      <h2 className="card-title-static">Ukeoversikt, siste {WEEK_COUNT} uker</h2>
+      <div className="seg seg-full pad-x" role="group" aria-label="Hva grafen viser">
+        {WEEK_METRICS.map((m) => (
+          <button key={m.id} className={`seg-item${metric === m.id ? ' seg-on' : ''}`} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <svg className="week-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${WEEK_METRICS.find((m) => m.id === metric)?.label} per uke`}>
+        {stats.map((s, i) => {
+          const h = (s[metric] / max) * (H - top - bottom);
+          const x = i * slot + (slot - barW) / 2;
+          return (
+            <g key={s.weekStart} onClick={() => setPicked(i)} className="week-slot">
+              <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
+              <rect
+                className={`week-bar${i === active ? ' week-bar-on' : ''}${s.isDeload ? ' week-bar-light' : ''}`}
+                x={x}
+                y={H - bottom - Math.max(h, s[metric] > 0 ? 3 : 1)}
+                width={barW}
+                height={Math.max(h, s[metric] > 0 ? 3 : 1)}
+                rx={3}
+              />
+              <text className={`chart-tick${i === active ? ' week-tick-on' : ''}`} x={i * slot + slot / 2} y={H - 6} textAnchor="middle">
+                {isoWeek(s.weekStart)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <p className="pad-x week-readout" role="status">
+        <strong>
+          Uke {isoWeek(week.weekStart)}
+          {week.isDeload ? ' (lettuke)' : ''}:
+        </strong>{' '}
+        {week.workouts === 0
+          ? 'ingen økter'
+          : `${week.workouts} ${week.workouts === 1 ? 'økt' : 'økter'}, ${week.workingSets} arbeidssett, ${thousands(week.volumeKg)} kg, ${week.minutes} min`}
+      </p>
+      <p className="muted small pad-x">
+        {trained.length === 0
+          ? 'Ingen økter de siste ukene. Trykk på en søyle for å se uka.'
+          : `Snitt for uker med trening: ${formatNumber(Math.round(avg((s) => s.workouts) * 10) / 10)} økter, ${formatNumber(
+              Math.round(avg((s) => s.workingSets)),
+            )} arbeidssett og ${thousands(avg((s) => s.volumeKg))} kg. Trykk på en søyle for å se uka. Tallet under søyla er ukenummer, og bleke søyler er lettuker. Volum teller bare øvelser med vekt × reps.`}
+      </p>
     </section>
   );
 }

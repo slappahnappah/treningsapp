@@ -1,11 +1,18 @@
 {
   "name": "treningsapp",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w @stige/web",
     "build": "npm run build -w @stige/web",
     "test": "npm run test -w @stige/core",
-    "typecheck": "npm run typecheck -w @stige/core && npm run typecheck -w @stige/web"
+    "typecheck": "npm run typecheck -w @stige/core && npm run typecheck -w @stige/web",
+    "e2e": "npm run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

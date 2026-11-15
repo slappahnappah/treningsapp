@@ -63,7 +63,8 @@ export function buildAiExport(input: AiExportInput): AiExport {
   const from = input.from;
   const exMap = new Map(input.exercises.map((e) => [e.id, e]));
   const finished = input.workouts.filter((w) => w.endedAt).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
-  const inPeriod = finished.filter((w) => !from || w.startedAt >= from);
+  // Økta regnes med når den ble avsluttet i perioden, så en økt som var i gang ved forrige eksport ikke faller ut.
+  const inPeriod = finished.filter((w) => !from || (w.endedAt ?? w.startedAt) >= from);
   const fromDay = from ? dateKey(from) : undefined;
   const notes = input.diary
     .filter((d) => d.text.trim() && (!fromDay || d.date >= fromDay))
