@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import {
+  MUSCLES,
+  MUSCLE_LABEL,
   defaultLevels,
   formatClock,
   levelLabel,
+  musclesFor,
   type Equipment,
   type Exercise,
   type ExerciseType,
   type Level,
+  type Muscle,
 } from '@stige/core';
 import { useData } from './data';
 import { db } from './db';
@@ -40,6 +44,8 @@ export function newExercise(): Exercise {
     archived: false,
   };
 }
+
+type MuscleRole = 'none' | 'direct' | 'indirect';
 
 interface Props {
   exercise: Exercise;
@@ -76,6 +82,15 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
     set(patch);
   };
 
+  const muscles = musclesFor(draft);
+  const setMuscle = (mu: Muscle, role: MuscleRole) => {
+    const direct = muscles.direct.filter((x) => x !== mu);
+    const indirect = muscles.indirect.filter((x) => x !== mu);
+    if (role === 'direct') direct.push(mu);
+    if (role === 'indirect') indirect.push(mu);
+    set({ muscles: { direct, indirect } });
+  };
+
   const levels = [...(draft.levels ?? [])].sort((a, b) => a.order - b.order);
   const setLevels = (next: Level[]) => set({ levels: next.map((l, i) => ({ ...l, order: i + 1 })) });
 
@@ -91,6 +106,8 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
         ...(draft.externalNames.bevel?.trim() ? { bevel: draft.externalNames.bevel.trim() } : {}),
       },
     };
+    if (clean.notes?.trim()) clean.notes = clean.notes.trim();
+    else delete clean.notes;
     if (clean.type !== 'level') {
       delete clean.levels;
       delete clean.levelMetric;
@@ -190,6 +207,36 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
           <span>Hovedøvelse (brukes av lettuke-varselet)</span>
           <input type="checkbox" checked={draft.isMainLift} onChange={(e) => set({ isMainLift: e.target.checked })} />
         </label>
+
+        <label className="form-row">
+          <span>Notat (vises når du logger øvelsen)</span>
+          <textarea
+            className="text note"
+            rows={2}
+            value={draft.notes ?? ''}
+            placeholder="For eksempel setehøyde eller grep"
+            onChange={(e) => set({ notes: e.target.value })}
+          />
+        </label>
+
+        <div className="form-row">
+          <span>Muskler (brukes i volum per muskelgruppe)</span>
+          <div className="muscle-pick">
+            {MUSCLES.map((mu) => {
+              const role = muscles.direct.includes(mu) ? 'direct' : muscles.indirect.includes(mu) ? 'indirect' : 'none';
+              return (
+                <label key={mu} style={{ display: 'contents' }}>
+                  <span className="small">{MUSCLE_LABEL[mu]}</span>
+                  <select className="text" value={role} onChange={(e) => setMuscle(mu, e.target.value as MuscleRole)}>
+                    <option value="none">Ikke med</option>
+                    <option value="direct">Hovedmuskel</option>
+                    <option value="indirect">Hjelper til</option>
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="field">
           <span>Hviletid etter sett</span>

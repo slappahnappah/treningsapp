@@ -23,6 +23,7 @@ import {
   removeExercise,
   removeSet,
   setDefaultRest,
+  setExerciseNotes,
   setDeload,
   setKind,
   toggleSet,
@@ -225,6 +226,12 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
         </button>
       </header>
 
+      {exercise.notes && (
+        <button className="ex-note" onClick={() => setMenu(true)} aria-label={`Notat for ${exercise.name}`}>
+          {exercise.notes}
+        </button>
+      )}
+
       <div className={`sets sets-${cols}`}>
         <div className="set-row set-head">
           <span>Sett</span>
@@ -270,6 +277,16 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
               </button>
             </div>
           </div>
+          <label className="form-row">
+            <span>Notat for øvelsen</span>
+            <textarea
+              className="text note"
+              rows={2}
+              defaultValue={exercise.notes ?? ''}
+              placeholder="For eksempel setehøyde eller grep"
+              onChange={(e) => void setExerciseNotes(exercise.id, e.target.value)}
+            />
+          </label>
           <button
             className="btn btn-wide"
             onClick={() => {

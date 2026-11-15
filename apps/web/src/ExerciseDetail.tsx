@@ -13,6 +13,7 @@ import {
 import { LineChart } from './Chart';
 import { useData } from './data';
 import { ExerciseEditor } from './ExerciseEditor';
+import { TrendCard } from './Insights';
 import { typeLabel } from './ExercisePicker';
 import { Overlay } from './ui';
 
@@ -73,6 +74,8 @@ export function ExerciseDetail({ exerciseId, onClose }: { exerciseId: string; on
 
       <div className="overlay-scroll">
         {sessions.length === 0 && <p className="muted pad">Øvelsen er ikke logget ennå.</p>}
+        {exercise.notes && <p className="ex-note">{exercise.notes}</p>}
+        {sessions.length > 0 && pane !== 'records' && <TrendCard exercise={exercise} />}
         {sessions.length > 0 && pane === 'history' && <History exercise={exercise} />}
         {sessions.length > 0 && pane === 'charts' && <Charts exercise={exercise} />}
         {sessions.length > 0 && pane === 'records' && <Records exercise={exercise} />}
