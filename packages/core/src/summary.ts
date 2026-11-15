@@ -56,11 +56,13 @@ function setTexts(exercise: Exercise, sets: SetEntry[], showLevel: boolean): str
   for (let i = 0; i < sets.length; i++) {
     const s = sets[i]!;
     const next = sets[i + 1];
-    if (s.side === 'left' && next?.side === 'right') {
+    if (s.side && next?.side && next.side !== s.side) {
+      // Skrives alltid som venstre/høyre, uansett hvilken side som ble tatt først.
+      const [l, r] = s.side === 'left' ? [s, next] : [next, s];
       // Nivået skrives én gang når begge sider har samme nivå.
-      const same = s.levelId === next.levelId;
-      const left = setText(exercise, s, showLevel);
-      const right = setText(exercise, next, showLevel && !same);
+      const same = l.levelId === r.levelId;
+      const left = setText(exercise, l, showLevel);
+      const right = setText(exercise, r, showLevel && !same);
       out.push(`${left}/${right}`);
       i++;
     } else if (s.side) {

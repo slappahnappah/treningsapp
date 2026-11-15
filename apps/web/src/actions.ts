@@ -3,14 +3,18 @@ import {
   findPreviousSets,
   indexWithinKind,
   dateKey,
+  orderSides,
+  pairIds,
   plannedSetsFor,
   restDurationSec,
   shouldStartRest,
+  swapExerciseSets,
   weekStartKey,
   type Exercise,
   type Routine,
   type SetEntry,
   type SetKind,
+  type Side,
   type WarmupSuggestion,
   type Workout,
   type WorkoutExercise,
@@ -29,7 +33,7 @@ async function mutateWorkout(id: string, fn: (w: Workout) => void): Promise<Work
   });
 }
 
-function newSets(exercise: Exercise, kind: SetKind, levelId?: string): SetEntry[] {
+function newSets(exercise: Exercise, kind: SetKind, levelId?: string, firstSide: Side = 'left'): SetEntry[] {
   const base = (): SetEntry => {
     const s: SetEntry = { id: uid(), kind, done: false };
     const lvl = levelId ?? (exercise.type === 'level' ? exercise.levels?.[0]?.id : undefined);
@@ -38,8 +42,8 @@ function newSets(exercise: Exercise, kind: SetKind, levelId?: string): SetEntry[
   };
   return exercise.unilateral
     ? [
-        { ...base(), side: 'left' },
-        { ...base(), side: 'right' },
+        { ...base(), side: firstSide },
+        { ...base(), side: firstSide === 'left' ? 'right' : 'left' },
       ]
     : [base()];
 }
@@ -111,7 +115,7 @@ export async function addSet(workoutId: string, weId: string, exercise: Exercise
     if (!we) return;
     const last = we.sets[we.sets.length - 1];
     const kind: SetKind = last && last.kind !== 'warmup' ? last.kind : 'working';
-    we.sets.push(...newSets(exercise, kind === 'drop' || kind === 'failure' ? 'working' : kind, last?.levelId));
+    we.sets.push(...newSets(exercise, kind === 'drop' || kind === 'failure' ? 'working' : kind, last?.levelId, we.firstSide));
   });
 }
 
@@ -134,13 +138,77 @@ export async function setKind(workoutId: string, weId: string, setId: string, ki
   });
 }
 
-function pairIds(sets: SetEntry[], setId: string): string[] {
-  const i = sets.findIndex((s) => s.id === setId);
-  const s = sets[i];
-  if (!s) return [];
-  if (s.side === 'left' && sets[i + 1]?.side === 'right') return [s.id, sets[i + 1]!.id];
-  if (s.side === 'right' && sets[i - 1]?.side === 'left') return [sets[i - 1]!.id, s.id];
-  return [s.id];
+/** Dagbok for økta: hvordan den kjentes. */
+export async function setWorkoutNote(workoutId: string, text: string): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    if (text.trim()) w.note = text;
+    else delete w.note;
+  });
+}
+
+/** Kommentar til en øvelse i akkurat denne økta. */
+export async function setExerciseComment(workoutId: string, weId: string, text: string): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const we = w.exercises.find((x) => x.id === weId);
+    if (!we) return;
+    if (text.trim()) we.note = text;
+    else delete we.note;
+  });
+}
+
+/** Flytter øvelsene i økta til rekkefølgen i `ids`. */
+export async function reorderExercises(workoutId: string, ids: string[]): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const pos = (id: string) => {
+      const i = ids.indexOf(id);
+      return i === -1 ? ids.length : i;
+    };
+    w.exercises = [...w.exercises].sort((a, b) => pos(a.id) - pos(b.id) || a.order - b.order);
+    w.exercises.forEach((x, i) => (x.order = i));
+  });
+}
+
+/** Velger hvilken side som tas først i denne økta, og snur settene som alt står der. */
+export async function setFirstSide(workoutId: string, weId: string, side: Side): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const we = w.exercises.find((x) => x.id === weId);
+    if (!we) return;
+    we.firstSide = side;
+    we.sets = orderSides(we.sets, side);
+  });
+}
+
+/** Setter samme RPE på alle arbeidssett, eller samme nivå på alle sett, i en øvelse. */
+export async function patchAllSets(workoutId: string, weId: string, patch: Pick<SetPatch, 'rpe' | 'levelId'>): Promise<void> {
+  await mutateWorkout(workoutId, (w) => {
+    const we = w.exercises.find((x) => x.id === weId);
+    if (!we) return;
+    for (const s of we.sets) {
+      if ('levelId' in patch && patch.levelId) s.levelId = patch.levelId;
+      if ('rpe' in patch && s.kind !== 'warmup') {
+        if (patch.rpe === undefined) delete s.rpe;
+        else s.rpe = patch.rpe;
+      }
+    }
+  });
+}
+
+/** Bytter en øvelse i økta til en annen, uten å slette og legge til på nytt. */
+export async function swapExercise(workoutId: string, weId: string, to: Exercise): Promise<void> {
+  const [workouts, exercises] = await Promise.all([db.workouts.toArray(), db.exercises.toArray()]);
+  const prev = findPreviousSets(workouts, to.id, workoutId);
+  const levelId = prev?.get('working', to.unilateral ? 'left' : undefined, 0)?.levelId;
+  await mutateWorkout(workoutId, (w) => {
+    const we = w.exercises.find((x) => x.id === weId);
+    const from = exercises.find((e) => e.id === we?.exerciseId);
+    if (!we || we.exerciseId === to.id) return;
+    const options: Parameters<typeof swapExerciseSets>[4] = {};
+    if (levelId) options.levelId = levelId;
+    if (we.firstSide) options.firstSide = we.firstSide;
+    we.sets = from ? swapExerciseSets(from, to, we.sets, uid, options) : newSets(to, 'working', levelId, we.firstSide);
+    we.exerciseId = to.id;
+    if (!to.unilateral) delete we.firstSide;
+  });
 }
 
 export type SetPatch = Partial<

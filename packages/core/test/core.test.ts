@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   averageRestSec,
+  buildAiExport,
+  defaultThresholds,
+  orderSides,
+  pairIds,
+  swapExerciseSets,
   computeRestBeforeSec,
   countWorkingSets,
   defaultSettings,
@@ -313,5 +318,79 @@ describe('formatering', () => {
     expect(parseNumber('')).toBeUndefined();
     expect(parseNumber('abc')).toBeUndefined();
     expect(formatClock(125)).toBe('2:05');
+  });
+});
+
+describe('sider, bytte av øvelse og eksport til AI', () => {
+  it('høyre side kan komme først: pause og hviletimer følger paret', () => {
+    const t = (sec: number) => new Date(Date.parse('2026-11-14T15:00:00.000Z') + sec * 1000).toISOString();
+    const r1 = set({ side: 'right', completedAt: t(0) });
+    const l1 = set({ side: 'left', done: false });
+    const w = workout([we('ex-pistol-squat', [r1, l1])]);
+    const weId = w.exercises[0]!.id;
+    expect(shouldStartRest(w, weId, r1.id)).toBe(false);
+    expect(computeRestBeforeSec(w, weId, l1.id, t(40))).toBeUndefined();
+    l1.done = true;
+    expect(shouldStartRest(w, weId, l1.id)).toBe(true);
+  });
+
+  it('orderSides snur hvert par og lar resten stå', () => {
+    const sets = [set({ side: 'left', reps: 1 }), set({ side: 'right', reps: 2 }), set({ reps: 3 }), set({ side: 'left', reps: 4 }), set({ side: 'right', reps: 5 })];
+    expect(orderSides(sets, 'right').map((s) => s.reps)).toEqual([2, 1, 3, 5, 4]);
+    expect(orderSides(orderSides(sets, 'right'), 'left').map((s) => s.reps)).toEqual([1, 2, 3, 4, 5]);
+    expect(pairIds(orderSides(sets, 'right'), sets[0]!.id)).toEqual([sets[1]!.id, sets[0]!.id]);
+  });
+
+  it('bytte til en øvelse av samme type beholder verdiene', () => {
+    const lib = new Map(seedExercises().map((e) => [e.id, e]));
+    const squat = lib.get('ex-back-squat')!;
+    const other = [...lib.values()].find((e) => e.type === 'weight_reps' && !e.unilateral && e.id !== squat.id)!;
+    const sets = [set({ weightKg: 100, reps: 5, rpe: 8 }), set({ done: false })];
+    const out = swapExerciseSets(squat, other, sets, () => 'ny');
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ weightKg: 100, reps: 5, rpe: 8, done: true });
+  });
+
+  it('bytte til en annen type tømmer settene, og nivået følger med', () => {
+    const lib = new Map(seedExercises().map((e) => [e.id, e]));
+    const squat = lib.get('ex-back-squat')!;
+    const lever = lib.get('ex-front-lever')!;
+    const pistol = lib.get('ex-pistol-squat')!;
+    const out = swapExerciseSets(squat, lever, [set({ weightKg: 100, reps: 5 })], () => 'ny');
+    expect(out[0]).toMatchObject({ done: false, levelId: lever.levels![0]!.id });
+    expect(out[0]!.weightKg).toBeUndefined();
+    let k = 0;
+    const pairs = swapExerciseSets(squat, pistol, [set({ weightKg: 100, reps: 5 }), set()], () => `ny${++k}`, { firstSide: 'right' });
+    expect(pairs.map((s) => s.side)).toEqual(['right', 'left', 'right', 'left']);
+    expect(new Set(pairs.map((s) => s.id)).size).toBe(4);
+    const back = swapExerciseSets(pistol, squat, pairs, () => 'x');
+    expect(back).toHaveLength(2);
+    expect(back.every((s) => s.side === undefined)).toBe(true);
+  });
+
+  it('eksport til AI tar med økter fra og med valgt tidspunkt', () => {
+    const exercises = seedExercises();
+    const mk = (date: string, kg: number): Workout => ({
+      id: date,
+      startedAt: `${date}T10:00:00.000Z`,
+      endedAt: `${date}T11:00:00.000Z`,
+      isDeload: false,
+      title: 'A',
+      note: 'Tung dag',
+      exercises: [we('ex-back-squat', [set({ weightKg: kg, reps: 5, rpe: 8, restBeforeSec: 120 })], { note: 'Vondt i kneet' })],
+    });
+    const workouts = [mk('2026-08-01', 100), mk('2026-10-01', 105)];
+    const base = { exercises, workouts, diary: [{ date: '2026-10-02', text: 'Sov dårlig' }], deloadWeeks: [], thresholds: defaultThresholds, now: new Date('2026-11-01T12:00:00Z') };
+    const all = buildAiExport(base);
+    expect(all.workouts).toBe(2);
+    expect(all.text).toContain('100 kg, 5 reps, RPE 8, pause før 120 s');
+    const part = buildAiExport({ ...base, from: '2026-09-01T00:00:00.000Z' });
+    expect(part.workouts).toBe(1);
+    expect(part.text).not.toContain('100 kg');
+    expect(part.text).toContain('105 kg');
+    expect(part.text).toContain('Sov dårlig');
+    expect(part.text).toContain('Dagbok for økta: Tung dag');
+    expect(part.text).toContain('Kommentar: Vondt i kneet');
+    expect(part.text).toContain('Knebøy');
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { formatClock } from '@stige/core';
-import { audioContext, restDoneSignal, vibrate } from './audio';
+import { audioContext, configureAudio, keepAudioAlive, restDoneSignal, vibrate, whenAudioReady } from './audio';
 import { useData } from './data';
 import { setRestTimer } from './db';
 import { useNow } from './hooks';
@@ -10,7 +10,13 @@ import { useNow } from './hooks';
  * har vært i bakgrunnen. Lyden planlegges på lydklokka i det timeren starter.
  */
 export function RestBar() {
-  const { rest, settings } = useData();
+  const { rest, settings, active } = useData();
+  const throughMute = settings.soundWhenSilent ?? true;
+  const training = !!active || !!rest;
+
+  useEffect(() => configureAudio({ throughMute }), [throughMute]);
+  // Lyden holdes våken gjennom hele økta, så signalet kommer når hvilen er ute.
+  useEffect(() => (training ? keepAudioAlive() : undefined), [training]);
   const now = useNow(250, !!rest);
   const endsAt = rest?.endsAt;
   const volume = settings.holdClock.volume;
@@ -35,7 +41,11 @@ export function RestBar() {
     const timeout = window.setTimeout(
       () => {
         vibrate([200, 100, 200]);
-        if (Date.now() - endsAt > 1500) restDoneSignal(volume);
+        // Lyden sov, eller appen våknet for sent: spill signalet nå i stedet for det planlagte.
+        if (Date.now() - endsAt > 1500 || audioContext()?.state !== 'running') {
+          cancel();
+          whenAudioReady(() => restDoneSignal(volume));
+        }
       },
       Math.max(0, endsAt - Date.now()),
     );

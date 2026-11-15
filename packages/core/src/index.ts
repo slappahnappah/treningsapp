@@ -14,3 +14,5 @@ export * from './backup';
 export * from './sync';
 export * from './trend';
 export * from './muscles';
+export * from './aiExport';
+export * from './edit';

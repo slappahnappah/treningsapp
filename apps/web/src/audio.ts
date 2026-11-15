@@ -1,5 +1,5 @@
 // Lyd med Web Audio API. Safari på iPhone krever at lyden «låses opp» av et trykk,
-// så unlockAudio() kalles på første berøring og på Start i holdeklokka.
+// så unlockAudio() kalles på hvert trykk (se main.tsx) og på Start i holdeklokka.
 
 let ctx: AudioContext | null = null;
 
@@ -14,22 +14,115 @@ export function audioContext(): AudioContext | null {
   return ctx;
 }
 
-export function unlockAudio(): void {
-  const c = audioContext();
-  if (!c) return;
-  // Nyere Safari: «playback» gjør at lyden også kommer når lydbryteren på iPhone står på lydløs.
+// Lyd selv om lydbryteren på iPhone står på lydløs. Styres fra innstillingene.
+let throughMute = true;
+let unlocked = false;
+let keepers = 0;
+let silent: HTMLAudioElement | null = null;
+
+/** Et kort, stille lydklipp (WAV) som kan gå i sløyfe. */
+function silentClip(): string {
+  const rate = 8000;
+  const samples = rate / 2;
+  const buf = new ArrayBuffer(44 + samples);
+  const v = new DataView(buf);
+  const text = (at: number, t: string) => [...t].forEach((ch, i) => v.setUint8(at + i, ch.charCodeAt(0)));
+  text(0, 'RIFF');
+  v.setUint32(4, 36 + samples, true);
+  text(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, 1, true); // mono
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true); // 8 bit, der 128 er stillhet
+  text(36, 'data');
+  v.setUint32(40, samples, true);
+  new Uint8Array(buf, 44).fill(128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
+/**
+ * Stille lyd i sløyfe mens en økt eller holdeklokka er i gang. På iPhone gjør
+ * den at pipene fra Web Audio går i mediekanalen, som ikke dempes av
+ * lydbryteren, og at lyden holdes i gang mellom pipene.
+ */
+function syncKeepAlive(): void {
+  const want = keepers > 0 && throughMute && unlocked;
   try {
-    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
-    if (session && session.type !== 'playback') session.type = 'playback';
+    if (want) {
+      if (!silent) {
+        silent = new Audio(silentClip());
+        silent.loop = true;
+        silent.setAttribute('playsinline', '');
+      }
+      if (silent.paused) void silent.play().catch(() => undefined);
+    } else if (silent && !silent.paused) {
+      silent.pause();
+    }
   } catch {
     // ikke støttet
   }
-  if (c.state !== 'running') void c.resume();
-  // Et stille lydklipp fra et trykk låser opp avspilling i Safari.
-  const src = c.createBufferSource();
-  src.buffer = c.createBuffer(1, 1, 22050);
-  src.connect(c.destination);
-  src.start(0);
+}
+
+function applySession(): void {
+  // Nyere Safari: «playback» gir lyd også når lydbryteren står på lydløs. «ambient» følger bryteren.
+  try {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    const type = throughMute ? 'playback' : 'ambient';
+    if (session && session.type !== type) session.type = type;
+  } catch {
+    // ikke støttet
+  }
+}
+
+export function configureAudio(options: { throughMute: boolean }): void {
+  throughMute = options.throughMute;
+  if (unlocked) applySession();
+  syncKeepAlive();
+}
+
+/** Holder lyden våken så lenge noe trenger den. Returnerer en funksjon som slipper taket. */
+export function keepAudioAlive(): () => void {
+  keepers++;
+  syncKeepAlive();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    keepers--;
+    syncKeepAlive();
+  };
+}
+
+/** Må kalles fra et trykk (klikk, slipp eller tast). Safari godtar ikke lyd ellers. */
+export function unlockAudio(): void {
+  const c = audioContext();
+  if (!c) return;
+  applySession();
+  if (c.state !== 'running') void c.resume().catch(() => undefined);
+  if (!unlocked) {
+    // Et stille lydklipp fra et trykk låser opp avspilling i Safari.
+    const src = c.createBufferSource();
+    src.buffer = c.createBuffer(1, 1, 22050);
+    src.connect(c.destination);
+    src.start(0);
+    unlocked = true;
+  }
+  syncKeepAlive();
+}
+
+/** Spiller av med en gang lyden er klar, også når den må vekkes først. */
+export function whenAudioReady(play: () => void): void {
+  const c = audioContext();
+  if (!c) return;
+  if (c.state === 'running') play();
+  else
+    void c
+      .resume()
+      .then(play)
+      .catch(() => undefined);
 }
 
 export interface Tone {
