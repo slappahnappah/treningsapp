@@ -22,7 +22,7 @@ import { SUPABASE_KEY, SUPABASE_URL } from './syncConfig';
 const LS_URL = 'stige.sync.url';
 const LS_KEY = 'stige.sync.key';
 const LS_CURSOR = 'stige.sync.cursor';
-const SYNCED_KV = ['settings', 'deloadWeeks'];
+const SYNCED_KV = ['settings', 'deloadWeeks', 'aiExport'];
 
 const ls = {
   get: (k: string) => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   RPE_VALUES,
   findPreviousSets,
@@ -7,6 +7,7 @@ import {
   formatSet,
   indexWithinKind,
   levelLabel,
+  pairPartner,
   type Exercise,
   type PreviousSets,
   type SetEntry,
@@ -19,13 +20,19 @@ import {
   addSet,
   deleteWorkout,
   finishWorkout,
+  patchAllSets,
   patchSet,
   removeExercise,
   removeSet,
+  reorderExercises,
   setDefaultRest,
   setExerciseNotes,
   setDeload,
+  setExerciseComment,
+  setFirstSide,
   setKind,
+  setWorkoutNote,
+  swapExercise,
   toggleSet,
   toggleSuperset,
   type SetPatch,
@@ -74,6 +81,7 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
   const [picking, setPicking] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
   const [freeClock, setFreeClock] = useState(false);
+  const [ordering, setOrdering] = useState(false);
 
   const all = workout.exercises.flatMap((we) => we.sets);
   const doneCount = all.filter((s) => s.done).length;
@@ -110,22 +118,52 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
       {workout.exercises.map((we) => {
         const exercise = exMap.get(we.exerciseId);
         if (!exercise) return null;
-        return <ExerciseCard key={we.id} workout={workout} we={we} exercise={exercise} workouts={workouts} live={!editing} />;
+        return (
+          <ExerciseCard
+            key={we.id}
+            workout={workout}
+            we={we}
+            exercise={exercise}
+            workouts={workouts}
+            live={!editing}
+            onReorder={() => setOrdering(true)}
+          />
+        );
       })}
 
       {workout.exercises.length === 0 && (
         <p className="muted pad">Økta er tom. Legg til den første øvelsen for å begynne å logge.</p>
       )}
 
+      {workout.exercises.length > 0 && (
+        <label className="form-row workout-note">
+          <span>Dagbok for økta</span>
+          <textarea
+            key={confirm === 'finish' ? 'låst' : 'åpen'}
+            className="text note"
+            rows={2}
+            defaultValue={workout.note ?? ''}
+            placeholder="Hvordan kjennes økta? Du kan skrive underveis og når du er ferdig."
+            onChange={(e) => void setWorkoutNote(workout.id, e.target.value)}
+          />
+        </label>
+      )}
+
       <button className="btn btn-wide" onClick={() => setPicking(true)}>
         + Legg til øvelse
       </button>
+      {workout.exercises.length > 1 && (
+        <button className="btn btn-wide" onClick={() => setOrdering(true)}>
+          ↕ Endre rekkefølgen på øvelsene
+        </button>
+      )}
       {!editing && (
         <button className="btn btn-wide btn-danger-text" onClick={() => setConfirm('discard')}>
           Forkast økta
         </button>
       )}
 
+      {ordering && <ReorderSheet workout={workout} onClose={() => setOrdering(false)} />}
       {freeClock && <HoldClock title="Holdeklokke" subtitle="Fri bruk" onClose={() => setFreeClock(false)} />}
 
       {picking && (
@@ -142,11 +180,23 @@ export function WorkoutView({ workout, editing, onClose, onFinished }: ViewProps
         <Sheet title="Fullføre økta?" onClose={() => setConfirm(null)}>
           <p className="muted">
             {doneCount === 0
-              ? 'Ingen sett er haket av ennå. Økta lagres tom.'
+              ? 'Ingen sett er haket av ennå, så økta blir ikke lagret.'
               : openCount > 0
                 ? `${doneCount} sett er haket av. ${openCount} sett uten hake blir ikke lagret.`
                 : `Alle ${doneCount} sett er haket av.`}
           </p>
+          {doneCount > 0 && (
+            <label className="form-row">
+              <span>Dagbok for økta</span>
+              <textarea
+                className="text note"
+                rows={4}
+                defaultValue={workout.note ?? ''}
+                placeholder="Hvordan kjentes økta? For eksempel form, søvn, smerter eller hva som gikk bra."
+                onChange={(e) => void setWorkoutNote(workout.id, e.target.value)}
+              />
+            </label>
+          )}
           <button
             className="btn btn-primary btn-wide"
             onClick={() => {
@@ -190,9 +240,12 @@ interface CardProps {
   exercise: Exercise;
   workouts: Workout[];
   live: boolean;
+  onReorder: () => void;
 }
 
-function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
+function ExerciseCard({ workout, we, exercise, workouts, live, onReorder }: CardProps) {
+  const [swapping, setSwapping] = useState(false);
+  const [swapTo, setSwapTo] = useState<Exercise | null>(null);
   const [menu, setMenu] = useState(false);
   const [plates, setPlates] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -206,12 +259,16 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
   const labels = we.sets.map((s) => {
     const side = s.side === 'left' ? 'V' : s.side === 'right' ? 'H' : '';
     if (s.kind !== 'working') return `${KIND_SHORT[s.kind]}${side}`;
-    if (s.side !== 'right') counter++;
+    if (!pairPartner(we.sets, s.id)?.isSecond) counter++;
     return `${Math.max(1, counter)}${side}`;
   });
 
   const seconds = exercise.type === 'time' || (exercise.type === 'level' && exercise.levelMetric === 'seconds');
   const cols = columnsFor(exercise);
+  // Verdien som alle settene deler, hvis de gjør det. Brukes til å markere valget i menyen.
+  const shared = <T,>(values: T[]): T | undefined => (values.length > 0 && values.every((v) => v === values[0]) ? values[0] : undefined);
+  const allRpe = shared(we.sets.filter((s) => s.kind !== 'warmup').map((s) => s.rpe));
+  const allLevel = shared(we.sets.map((s) => s.levelId));
 
   return (
     <section className="card">
@@ -262,6 +319,14 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
       <button className="btn btn-wide btn-quiet" onClick={() => void addSet(workout.id, we.id, exercise)}>
         + Sett
       </button>
+      <textarea
+        className="text note we-note"
+        rows={1}
+        aria-label={`Kommentar til ${exercise.name} i denne økta`}
+        defaultValue={we.note ?? ''}
+        placeholder="Kommentar til øvelsen i dag"
+        onChange={(e) => void setExerciseComment(workout.id, we.id, e.target.value)}
+      />
 
       {menu && (
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>
@@ -277,8 +342,62 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
               </button>
             </div>
           </div>
+          {exercise.unilateral && (
+            <div className="field">
+              <span>Første side i denne økta</span>
+              <div className="seg">
+                {(['left', 'right'] as const).map((side) => (
+                  <button
+                    key={side}
+                    className={`seg-item${(we.firstSide ?? 'left') === side ? ' seg-on' : ''}`}
+                    aria-pressed={(we.firstSide ?? 'left') === side}
+                    onClick={() => void setFirstSide(workout.id, we.id, side)}
+                  >
+                    {side === 'left' ? 'Venstre' : 'Høyre'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {exercise.type === 'level' && (exercise.levels?.length ?? 0) > 1 && (
+            <div className="form-row">
+              <span>Nivå på alle sett</span>
+              <div className="seg seg-wrap">
+                {[...(exercise.levels ?? [])]
+                  .sort((a, b) => a.order - b.order)
+                  .map((l) => (
+                    <button
+                      key={l.id}
+                      className={`seg-item${allLevel === l.id ? ' seg-on' : ''}`}
+                      aria-label={`${levelLabel(l)} på alle sett`}
+                      onClick={() => void patchAllSets(workout.id, we.id, { levelId: l.id })}
+                    >
+                      {levelLabel(l)}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          <div className="form-row">
+            <span>RPE på alle arbeidssett</span>
+            <div className="seg seg-wrap">
+              {RPE_VALUES.map((v) => (
+                <button
+                  key={v}
+                  className={`seg-item${allRpe === v ? ' seg-on' : ''}`}
+                  aria-label={`RPE ${formatNumber(v)} på alle arbeidssett`}
+                  onClick={() => void patchAllSets(workout.id, we.id, { rpe: v })}
+                >
+                  {formatNumber(v)}
+                </button>
+              ))}
+              <button className="seg-item" onClick={() => void patchAllSets(workout.id, we.id, { rpe: undefined })}>
+                Ingen
+              </button>
+            </div>
+          </div>
           <label className="form-row">
-            <span>Notat for øvelsen</span>
+            <span>Fast notat for øvelsen (vises hver gang)</span>
             <textarea
               className="text note"
               rows={2}
@@ -319,6 +438,26 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
             </button>
           )}
           <button
+            className="btn btn-wide"
+            onClick={() => {
+              setMenu(false);
+              setSwapping(true);
+            }}
+          >
+            Bytt til en annen øvelse
+          </button>
+          {workout.exercises.length > 1 && (
+            <button
+              className="btn btn-wide"
+              onClick={() => {
+                setMenu(false);
+                onReorder();
+              }}
+            >
+              Flytt øvelsen opp eller ned
+            </button>
+          )}
+          <button
             className="btn btn-danger btn-wide"
             onClick={() => {
               setMenu(false);
@@ -329,6 +468,40 @@ function ExerciseCard({ workout, we, exercise, workouts, live }: CardProps) {
           </button>
           <button className="btn btn-wide" onClick={() => setMenu(false)}>
             Lukk
+          </button>
+        </Sheet>
+      )}
+      {swapping && (
+        <ExercisePicker
+          title={`Bytt ut ${exercise.name}`}
+          onClose={() => setSwapping(false)}
+          onPick={(e) => {
+            setSwapping(false);
+            if (e.id === exercise.id) return;
+            // Verdiene følger bare med når den nye øvelsen logges på samme måte.
+            const same = e.type === exercise.type && (e.type !== 'level' || e.levelMetric === exercise.levelMetric);
+            if (!same && we.sets.some((s) => s.done)) setSwapTo(e);
+            else void swapExercise(workout.id, we.id, e);
+          }}
+        />
+      )}
+      {swapTo && (
+        <Sheet title={`Bytte til ${swapTo.name}?`} onClose={() => setSwapTo(null)}>
+          <p className="muted">
+            {swapTo.name} logges på en annen måte enn {exercise.name}. Settene beholdes, men det som alt er ført inn og haket
+            av i denne øvelsen, tømmes.
+          </p>
+          <button
+            className="btn btn-primary btn-wide"
+            onClick={() => {
+              void swapExercise(workout.id, we.id, swapTo);
+              setSwapTo(null);
+            }}
+          >
+            Bytt øvelse
+          </button>
+          <button className="btn btn-wide" onClick={() => setSwapTo(null)}>
+            Avbryt
           </button>
         </Sheet>
       )}
@@ -538,5 +711,101 @@ function SetRow({ workout, we, exercise, set, label, prev, live }: RowProps) {
         />
       )}
     </div>
+  );
+}
+
+/** Ark for å endre rekkefølgen på øvelsene: dra i håndtaket, eller bruk pilene. */
+function ReorderSheet({ workout, onClose }: { workout: Workout; onClose: () => void }) {
+  const { exMap } = useData();
+  const [ids, setIds] = useState(() => workout.exercises.map((x) => x.id));
+  const idsRef = useRef(ids);
+  const drag = useRef<{ id: string; startY: number; startIndex: number; step: number } | null>(null);
+  const [dragging, setDragging] = useState<{ id: string; offset: number } | null>(null);
+  const byId = new Map(workout.exercises.map((x) => [x.id, x]));
+
+  const apply = (next: string[], save: boolean) => {
+    idsRef.current = next;
+    setIds(next);
+    if (save) void reorderExercises(workout.id, next);
+  };
+  const move = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= ids.length) return;
+    const next = [...ids];
+    [next[i], next[j]] = [next[j]!, next[i]!];
+    apply(next, true);
+  };
+  const onDown = (e: ReactPointerEvent<HTMLButtonElement>, id: string, i: number) => {
+    const row = e.currentTarget.closest('li');
+    if (!row) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { id, startY: e.clientY, startIndex: i, step: row.offsetHeight + 6 };
+    setDragging({ id, offset: 0 });
+  };
+  const onMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.clientY - d.startY;
+    const list = idsRef.current;
+    const target = Math.max(0, Math.min(list.length - 1, d.startIndex + Math.round(dy / d.step)));
+    const current = list.indexOf(d.id);
+    if (target !== current) {
+      const next = list.filter((x) => x !== d.id);
+      next.splice(target, 0, d.id);
+      apply(next, false);
+    }
+    setDragging({ id: d.id, offset: dy - (target - d.startIndex) * d.step });
+  };
+  const onUp = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDragging(null);
+    void reorderExercises(workout.id, idsRef.current);
+  };
+
+  return (
+    <Sheet title="Rekkefølge på øvelsene" onClose={onClose}>
+      <p className="muted small">Dra i håndtaket til venstre, eller bruk pilene.</p>
+      <ol className="reorder">
+        {ids.map((id, i) => {
+          const we = byId.get(id);
+          const name = (we && exMap.get(we.exerciseId)?.name) ?? 'Ukjent øvelse';
+          const on = dragging?.id === id;
+          return (
+            <li
+              key={id}
+              className={`reorder-row${on ? ' reorder-drag' : ''}`}
+              style={on ? { transform: `translateY(${dragging.offset}px)` } : undefined}
+            >
+              <button
+                className="reorder-handle"
+                aria-label={`Dra ${name}`}
+                onPointerDown={(e) => onDown(e, id, i)}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerCancel={onUp}
+              >
+                ☰
+              </button>
+              <span className="reorder-name">{name}</span>
+              <button className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Flytt ${name} opp`}>
+                ▲
+              </button>
+              <button
+                className="icon-btn"
+                disabled={i === ids.length - 1}
+                onClick={() => move(i, 1)}
+                aria-label={`Flytt ${name} ned`}
+              >
+                ▼
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <button className="btn btn-primary btn-wide" onClick={onClose}>
+        Ferdig
+      </button>
+    </Sheet>
   );
 }

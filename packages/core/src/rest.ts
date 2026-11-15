@@ -9,9 +9,27 @@ export function restGroup(workout: Workout, we: WorkoutExercise): WorkoutExercis
 }
 
 /**
+ * Partneren til et sett på en unilateral øvelse: settet for den andre siden som
+ * står rett ved siden av. Parene dannes fra toppen, og rekkefølgen på sidene
+ * kan være venstre–høyre eller høyre–venstre.
+ */
+export function pairPartner(sets: SetEntry[], setId: string): { partner: SetEntry; isSecond: boolean } | undefined {
+  for (let i = 0; i < sets.length; i++) {
+    const a = sets[i]!;
+    const b = sets[i + 1];
+    if (a.side && b?.side && a.side !== b.side) {
+      if (a.id === setId) return { partner: b, isSecond: false };
+      if (b.id === setId) return { partner: a, isSecond: true };
+      i++;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Faktisk pause før et sett: tiden fra forrige sett ble haket av (i samme øvelse,
  * eller i samme supersett) til dette settet hakes av, minus settets egen varighet.
- * Høyre side av et unilateralt sett får ingen pause når venstre side nettopp er gjort,
+ * Den andre siden av et unilateralt sett får ingen pause når den første siden nettopp er gjort,
  * fordi man går rett fra den ene siden til den andre.
  */
 export function computeRestBeforeSec(
@@ -22,12 +40,11 @@ export function computeRestBeforeSec(
 ): number | undefined {
   const we = workout.exercises.find((x) => x.id === workoutExerciseId);
   if (!we) return undefined;
-  const idx = we.sets.findIndex((s) => s.id === setId);
-  const set = we.sets[idx];
+  const set = we.sets.find((s) => s.id === setId);
   if (!set) return undefined;
 
-  const before = we.sets[idx - 1];
-  if (set.side === 'right' && before?.side === 'left' && before.done) return undefined;
+  const pair = pairPartner(we.sets, setId);
+  if (pair?.isSecond && pair.partner.done) return undefined;
 
   const now = Date.parse(completedAt);
   let prev: number | undefined;
@@ -60,18 +77,10 @@ export function averageRestSec(sets: SetEntry[]): number | undefined {
 export function shouldStartRest(workout: Workout, workoutExerciseId: string, setId: string): boolean {
   const we = workout.exercises.find((x) => x.id === workoutExerciseId);
   if (!we) return false;
-  const idx = we.sets.findIndex((s) => s.id === setId);
-  const set = we.sets[idx];
-  if (!set) return false;
+  if (!we.sets.some((s) => s.id === setId)) return false;
 
-  if (set.side === 'left') {
-    const next = we.sets[idx + 1];
-    if (next?.side === 'right' && !next.done) return false;
-  }
-  if (set.side === 'right') {
-    const before = we.sets[idx - 1];
-    if (before?.side === 'left' && !before.done) return false;
-  }
+  const pair = pairPartner(we.sets, setId);
+  if (pair && !pair.partner.done) return false;
 
   const group = restGroup(workout, we);
   if (group.length > 1) {

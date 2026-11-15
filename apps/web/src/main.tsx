@@ -6,18 +6,15 @@ import { startSync } from './sync';
 import { startUpdateCheck } from './update';
 import './styles.css';
 
-// Safari på iPhone slipper ikke gjennom lyd før brukeren har trykket på noe.
-let unlocked = false;
-document.addEventListener(
-  'pointerdown',
-  () => {
-    if (!unlocked || audioContext()?.state !== 'running') {
-      unlockAudio();
-      unlocked = true;
-    }
-  },
-  { passive: true },
-);
+// Safari på iPhone slipper ikke gjennom lyd før brukeren har trykket på noe, og
+// lyden kan sovne igjen når appen har ligget i bakgrunnen. Berøring teller først
+// som et trykk når fingeren slippes, så vi lytter på slipp, klikk og tast.
+for (const type of ['pointerup', 'touchend', 'click', 'keydown']) {
+  document.addEventListener(type, unlockAudio, { passive: true, capture: true });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void audioContext()?.resume().catch(() => undefined);
+});
 
 // Be nettleseren om ikke å slette dataene når lagringsplassen blir trang.
 void navigator.storage?.persist?.();

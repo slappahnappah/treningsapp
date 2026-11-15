@@ -82,6 +82,10 @@ export interface WorkoutExercise {
   exerciseId: string;
   order: number;
   supersetGroup?: string;
+  /** Hvilken side som tas først i denne økta på unilaterale øvelser. Standard er venstre. */
+  firstSide?: Side;
+  /** Kommentar til øvelsen i akkurat denne økta. */
+  note?: string;
   sets: SetEntry[];
 }
 
@@ -92,6 +96,8 @@ export interface Workout {
   routineId?: string;
   title?: string;
   isDeload: boolean;
+  /** Dagbok for økta: hvordan den kjentes. */
+  note?: string;
   exercises: WorkoutExercise[];
 }
 
@@ -139,6 +145,8 @@ export interface Settings {
   warmupScheme: { percent: number; reps: number }[];
   thresholds: ProgressionThresholds;
   holdClock: { volume: number; beepEverySec: number; countdownSec?: number };
+  /** Lyd fra timer og holdeklokke selv om telefonen står på lydløs. Standard er på. */
+  soundWhenSilent?: boolean;
 }
 
 export const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10] as const;

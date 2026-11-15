@@ -12,6 +12,7 @@ import {
   type Level,
   type Muscle,
 } from '@stige/core';
+import { deleteExercise } from './actions';
 import { useData } from './data';
 import { db } from './db';
 import { TYPE_LABEL } from './ExercisePicker';
@@ -322,7 +323,7 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
               <button
                 className="btn btn-danger btn-wide"
                 onClick={() => {
-                  void db.exercises.delete(exercise.id);
+                  void deleteExercise(exercise.id);
                   (onDeleted ?? onClose)();
                 }}
               >

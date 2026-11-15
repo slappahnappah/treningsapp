@@ -83,6 +83,7 @@ export function WorkoutCard({ workout, actions }: { workout: Workout; actions?: 
               )}
               <strong>{ex.name}</strong>
               <span className="muted"> {sets.join(', ')}</span>
+              {we.note?.trim() && <span className="we-comment">{we.note.trim()}</span>}
             </li>
           );
         })}
@@ -92,6 +93,7 @@ export function WorkoutCard({ workout, actions }: { workout: Workout; actions?: 
         {workoutWorkingSets(workout)} arbeidssett
         {volume > 0 ? ` · volum ${formatNumber(volume)} kg` : ''}
       </div>
+      {workout.note?.trim() && <p className="note-quote">{workout.note.trim()}</p>}
       {note && <p className="note-quote">{note}</p>}
 
       {sheet === 'menu' && (

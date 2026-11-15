@@ -26,13 +26,19 @@ export function useExerciseSearch(query: string): Exercise[] {
   }, [exercises, query]);
 }
 
-export function ExercisePicker({ onPick, onClose }: { onPick: (e: Exercise) => void; onClose: () => void }) {
+interface PickerProps {
+  onPick: (e: Exercise) => void;
+  onClose: () => void;
+  title?: string;
+}
+
+export function ExercisePicker({ onPick, onClose, title = 'Legg til øvelse' }: PickerProps) {
   const [query, setQuery] = useState('');
   const list = useExerciseSearch(query);
   return (
     <Overlay label="Velg øvelse">
       <header className="overlay-head">
-        <h2>Legg til øvelse</h2>
+        <h2>{title}</h2>
         <button className="btn" onClick={onClose}>
           Lukk
         </button>

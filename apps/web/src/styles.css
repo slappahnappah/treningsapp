@@ -1082,3 +1082,81 @@ h3 {
   border-bottom: 1px solid var(--accent);
   font-size: 14px;
 }
+
+/* Lange ark skal kunne rulles. */
+.sheet {
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Rekkefølge på øvelsene */
+.reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.reorder-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.reorder-drag {
+  position: relative;
+  z-index: 1;
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.reorder-handle {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.reorder-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.reorder-row .icon-btn:disabled {
+  opacity: 0.3;
+}
+
+.seg-item {
+  padding: 0 10px;
+}
+
+/* Kommentar per øvelse og dagbok for økta */
+.we-note {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 6px;
+  font-size: 15px;
+  field-sizing: content;
+}
+.workout-note {
+  margin: 4px 0 12px;
+}
+.we-comment {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  font-style: italic;
+  white-space: pre-wrap;
+}

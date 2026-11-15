@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { beep, playTone, tick, unlockAudio } from './audio';
+import { beep, keepAudioAlive, playTone, tick, unlockAudio } from './audio';
 import { useData } from './data';
 import { saveSettings } from './db';
 import { useNow } from './hooks';
@@ -31,6 +31,7 @@ export function HoldClock({ title, subtitle, onSave, onClose }: Props) {
   holdRef.current = hold;
 
   useWakeLock(true);
+  useEffect(() => keepAudioAlive(), []);
 
   useEffect(() => {
     if (startAt === null) return;

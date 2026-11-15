@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import {
   defaultSettings,
   formatNumber,
+  buildAiExport,
   makeBackup,
   parseBackup,
   workoutsToCsv,
@@ -80,6 +82,19 @@ export function SettingsTab() {
         >
           Spill av testlyd
         </button>
+        <label className="field field-check">
+          <span>Lyd også når telefonen står på lydløs</span>
+          <input
+            type="checkbox"
+            checked={settings.soundWhenSilent ?? true}
+            onChange={(e) => void saveSettings({ soundWhenSilent: e.target.checked })}
+          />
+        </label>
+        <p className="muted small pad-x">
+          Når dette er på, kommer pipene selv om lydbryteren på iPhone står på lydløs. Musikk fra andre apper kan da bli
+          satt på pause. Skru det av hvis du heller vil at appen skal følge lydbryteren. Volumet følger volumknappene på
+          telefonen.
+        </p>
       </section>
 
       <section className="card">
@@ -175,6 +190,8 @@ export function SettingsTab() {
 
       <SyncSection />
 
+      <AiExportSection />
+
       <BackupSection />
 
       <section className="card">
@@ -264,6 +281,102 @@ function NamesOverlay({ onClose }: { onClose: () => void }) {
         ))}
       </div>
     </Overlay>
+  );
+}
+
+const AI_PERIODS: { id: string; label: string; months?: number }[] = [
+  { id: 'new', label: 'Nytt siden sist' },
+  { id: '3', label: '3 md', months: 3 },
+  { id: '6', label: '6 md', months: 6 },
+  { id: '12', label: '12 md', months: 12 },
+  { id: 'all', label: 'Alt' },
+];
+const longDate = new Intl.DateTimeFormat('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Eksport av treningsdata til en tekstfil som en AI-assistent kan lese. Appen selv bruker ingen AI. */
+function AiExportSection() {
+  const { exercises, workouts, settings, notes, deloadWeeks } = useData();
+  const last = useLiveQuery(async () => ((await db.kv.get('aiExport'))?.value as { lastAt?: string } | undefined)?.lastAt ?? '', []);
+  const [period, setPeriod] = useState('new');
+  const [status, setStatus] = useState('');
+
+  const from = (): string | undefined => {
+    const p = AI_PERIODS.find((x) => x.id === period);
+    if (p?.months) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - p.months);
+      return d.toISOString();
+    }
+    return period === 'new' && last ? last : undefined;
+  };
+  const build = () => {
+    const input: Parameters<typeof buildAiExport>[0] = {
+      exercises,
+      workouts,
+      diary: [...notes].map(([date, text]) => ({ date, text })),
+      deloadWeeks: [...deloadWeeks],
+      thresholds: settings.thresholds,
+    };
+    const f = from();
+    if (f) input.from = f;
+    return buildAiExport(input);
+  };
+  const preview = build();
+  const done = async (what: string, count: number) => {
+    // «Nytt siden sist» regnes fra dette tidspunktet neste gang.
+    await db.kv.put({ key: 'aiExport', value: { lastAt: new Date().toISOString() } });
+    setStatus(`${what} med ${count} ${count === 1 ? 'økt' : 'økter'}.`);
+    setPeriod('new');
+  };
+  const save = async () => {
+    const out = build();
+    await saveFile(`stige-til-ai-${new Date().toISOString().slice(0, 10)}.txt`, out.text, 'text/plain');
+    await done('Fila er laget', out.workouts);
+  };
+  const copy = async () => {
+    const out = build();
+    if (await copyText(out.text)) await done('Teksten er kopiert', out.workouts);
+    else setStatus('Kunne ikke kopiere.');
+  };
+
+  return (
+    <section className="card">
+      <h2 className="card-title-static">Eksport til AI-assistent</h2>
+      <p className="muted small pad-x">
+        Lager en tekstfil med økter, sett, RPE, pauser, nivåer, trend, lettuker og dagboknotater. Fila kan lastes opp til
+        for eksempel Claude eller Grok, som kan lese og vurdere treningen. Appen sender ingenting selv.
+      </p>
+      <p className="muted small pad-x">
+        {last ? `Sist eksportert ${longDate.format(new Date(last))}.` : 'Ingen eksport er laget ennå, så «Nytt siden sist» tar med alt.'}
+      </p>
+      <div className="seg seg-wrap pad-x" role="group" aria-label="Periode for eksporten">
+        {AI_PERIODS.map((p) => (
+          <button
+            key={p.id}
+            className={`seg-item${period === p.id ? ' seg-on' : ''}`}
+            aria-pressed={period === p.id}
+            onClick={() => {
+              setPeriod(p.id);
+              setStatus('');
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted small pad-x">
+        Valget gir {preview.workouts} {preview.workouts === 1 ? 'økt' : 'økter'} og {preview.sets} sett.
+      </p>
+      <button className="btn btn-wide" onClick={() => void save()}>
+        Lag fil til AI-assistent
+      </button>
+      <button className="btn btn-wide" onClick={() => void copy()}>
+        Kopier som tekst
+      </button>
+      <p className="muted small pad-x" role="status">
+        {status}
+      </p>
+    </section>
   );
 }
 
