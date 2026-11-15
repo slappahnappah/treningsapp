@@ -1160,3 +1160,33 @@ h3 {
   font-style: italic;
   white-space: pre-wrap;
 }
+
+/* Ukeoversikt */
+.week-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0;
+  touch-action: pan-y;
+}
+.week-slot {
+  cursor: pointer;
+}
+.week-bar {
+  fill: var(--accent);
+  opacity: 0.55;
+}
+.week-bar-light {
+  opacity: 0.25;
+}
+.week-bar-on {
+  opacity: 1;
+}
+.week-tick-on {
+  fill: var(--text, #fff);
+  font-weight: 700;
+}
+.week-readout {
+  margin: 4px 0;
+  font-variant-numeric: tabular-nums;
+}

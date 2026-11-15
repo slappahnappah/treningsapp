@@ -14,7 +14,7 @@ import {
 } from '@stige/core';
 import { deleteWorkout, saveAsRoutine, saveNote, setDeload, setWeekDeload } from './actions';
 import { useData } from './data';
-import { MuscleVolumeCard } from './Insights';
+import { MuscleVolumeCard, WeekOverviewCard } from './Insights';
 import { ProgressArrow, ProgressList, useProgress } from './Progress';
 import { SummaryOverlay } from './Summary';
 import { Overlay, Sheet } from './ui';
@@ -270,6 +270,7 @@ export function DiaryTab() {
       </p>
 
       <MuscleVolumeCard weekStart={selectedWeek} />
+      <WeekOverviewCard />
 
       {recent.length > 0 && <h2>Siste økter</h2>}
       {recent.map((w) => (

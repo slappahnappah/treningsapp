@@ -16,3 +16,4 @@ export * from './trend';
 export * from './muscles';
 export * from './aiExport';
 export * from './edit';
+export * from './weeks';
