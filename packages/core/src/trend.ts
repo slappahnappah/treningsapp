@@ -24,16 +24,41 @@ const pct = (n: number) => {
   return `${r > 0 ? '+' : r < 0 ? '−' : ''}${formatNumber(Math.abs(r))} %`;
 };
 
-/** Hva trenden måles i. Nivå- og assistanseøvelser har ingen trend ennå. */
-function metric(exercise: Exercise): { value: (s: ExerciseSession) => number; name: string } | undefined {
-  const best = (s: ExerciseSession, f: (x: SetEntry) => number) => Math.max(0, ...working(s).map(f));
+/**
+ * Hva trenden måles i, ut fra den nyeste økta. Nivåøvelser følges på det
+ * høyeste nivået i den nyeste økta. Assistanseøvelser har ingen trend ennå.
+ */
+function metric(
+  exercise: Exercise,
+  latest: ExerciseSession,
+): { value: (s: ExerciseSession) => number; name: string } | undefined {
+  const best = (sets: SetEntry[], f: (x: SetEntry) => number) => Math.max(0, ...sets.map(f));
+  const reps = (x: SetEntry) => x.reps ?? 0;
+  const seconds = (x: SetEntry) => x.durationSec ?? 0;
   switch (exercise.type) {
     case 'weight_reps':
-      return { value: (s) => best(s, setE1RM), name: 'Estimert 1RM' };
-    case 'bodyweight':
-      return { value: (s) => best(s, (x) => x.reps ?? 0), name: 'Beste sett' };
+      return { value: (s) => best(working(s), setE1RM), name: 'Estimert 1RM' };
+    case 'bodyweight': {
+      // Med ekstravekt følges estimert 1RM for ekstravekten, ellers beste sett.
+      const weighted = (x: SetEntry) => (x.weightKg ?? 0) > 0;
+      if (working(latest).some(weighted)) {
+        return { value: (s) => best(working(s).filter(weighted), setE1RM), name: 'Estimert 1RM med ekstravekt' };
+      }
+      return { value: (s) => best(working(s).filter((x) => !weighted(x)), reps), name: 'Beste sett' };
+    }
     case 'time':
-      return { value: (s) => best(s, (x) => x.durationSec ?? 0), name: 'Lengste hold' };
+      return { value: (s) => best(working(s), seconds), name: 'Lengste hold' };
+    case 'level': {
+      const order = (x: SetEntry) => exercise.levels?.find((l) => l.id === x.levelId)?.order ?? 0;
+      const top = [...working(latest)].sort((p, q) => order(q) - order(p))[0];
+      const level = exercise.levels?.find((l) => l.id === top?.levelId);
+      if (!level) return undefined;
+      const hold = exercise.levelMetric === 'seconds';
+      return {
+        value: (s) => best(working(s).filter((x) => x.levelId === level.id), hold ? seconds : reps),
+        name: `${hold ? 'Lengste hold' : 'Beste sett'} på P${level.order}`,
+      };
+    }
     default:
       return undefined;
   }
@@ -48,19 +73,18 @@ export function exerciseTrend(
   history: ExerciseSession[],
   t: ProgressionThresholds,
 ): Trend | undefined {
-  const m = metric(exercise);
-  if (!m) return undefined;
   const normal = history
     .filter((s) => !s.isDeload && working(s).length > 0)
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   const latest = normal[0];
   if (!latest) return undefined;
-  // Nyeste først. Den nyeste økta er alltid med.
-  const alike = normal.filter((s) => s === latest || areAlike(latest, s, t)).slice(0, t.trendSessions);
-  const points = alike
-    .map((s) => ({ x: Date.parse(s.startedAt) / (7 * DAY), y: m.value(s) }))
-    .filter((p) => p.y > 0)
-    .reverse();
+  const m = metric(exercise, latest);
+  if (!m) return undefined;
+  // Nyeste først. Den nyeste økta er alltid med. Økter uten verdi (f.eks. et annet nivå) holdes utenfor.
+  const alike = normal
+    .filter((s) => (s === latest || areAlike(latest, s, t)) && m.value(s) > 0)
+    .slice(0, t.trendSessions);
+  const points = alike.map((s) => ({ x: Date.parse(s.startedAt) / (7 * DAY), y: m.value(s) })).reverse();
   const n = points.length;
   const weeks = n > 1 ? points[n - 1]!.x - points[0]!.x : 0;
 

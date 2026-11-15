@@ -282,8 +282,10 @@ export function startSync(): void {
   }, 120_000);
   // Lokale endringer: vent litt, så flere endringer sendes samlet.
   Dexie.on('storagemutated', (parts) => {
-    if (running) return;
     const tables = Object.keys(parts).filter((k) => !k.includes('/synced'));
-    if (tables.length > 0) schedule(2500);
+    if (tables.length === 0) return;
+    // Endringer mens en runde går (egne eller brukerens) tas i en ny runde rett etterpå.
+    if (running) again = true;
+    else schedule(2500);
   });
 }

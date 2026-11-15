@@ -38,6 +38,7 @@ const THRESHOLD_LABELS: [keyof Settings['thresholds'], string][] = [
 
 export function SettingsTab() {
   const { settings, active } = useData();
+  const sync = useSync();
   const [clock, setClock] = useState(false);
   const [names, setNames] = useState(false);
   const hold = settings.holdClock;
@@ -179,7 +180,8 @@ export function SettingsTab() {
       <section className="card">
         <h2 className="card-title-static">Om</h2>
         <p className="muted small pad-x">
-          Stige {__APP_VERSION__}. Alle data ligger bare på denne enheten.
+          Stige {__APP_VERSION__}.{' '}
+          {sync.email ? 'Dataene ligger på denne enheten og synkes til kontoen din.' : 'Alle data ligger bare på denne enheten.'}
           {active ? ' En økt er i gang.' : ''}
         </p>
       </section>
@@ -267,6 +269,7 @@ function NamesOverlay({ onClose }: { onClose: () => void }) {
 
 function BackupSection() {
   const { exercises, workouts, routines, settings, exMap } = useData();
+  const sync = useSync();
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<Backup | null>(null);
   const [status, setStatus] = useState('');
@@ -318,8 +321,9 @@ function BackupSection() {
     <section className="card">
       <h2 className="card-title-static">Backup</h2>
       <p className="muted small pad-x">
-        Dataene ligger bare på denne enheten. Ta en backup med jevne mellomrom og lagre fila et trygt sted, for eksempel
-        i iCloud Drive.
+        {sync.email
+          ? 'Dataene synkes til kontoen din. En backup er likevel en ekstra sikkerhet. Lagre fila et trygt sted, for eksempel i iCloud Drive.'
+          : 'Dataene ligger bare på denne enheten. Ta en backup med jevne mellomrom og lagre fila et trygt sted, for eksempel i iCloud Drive.'}
       </p>
       <button className="btn btn-wide" onClick={() => void exportJson()}>
         Eksporter backup (JSON)

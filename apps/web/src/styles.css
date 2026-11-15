@@ -1059,3 +1059,26 @@ h3 {
   border-right: 0;
   border-bottom: 0;
 }
+
+/* Smale skjermer: toppen av økta skal ikke brekke */
+.chip {
+  white-space: nowrap;
+}
+.workout-head h1 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 359px) {
+  .chip-label-wide {
+    display: none;
+  }
+}
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--accent);
+  font-size: 14px;
+}

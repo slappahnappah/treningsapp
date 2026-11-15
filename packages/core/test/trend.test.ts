@@ -76,6 +76,25 @@ describe('trend', () => {
     expect(r?.reason).toContain('Lengste hold');
     expect(exerciseTrend(lib.get('ex-front-lever')!, [], t)).toBeUndefined();
   });
+  it('nivåøvelser følges på det høyeste nivået i den nyeste økta', () => {
+    const fl = lib.get('ex-front-lever')!;
+    const [p1, p2] = [fl.levels![0]!.id, fl.levels![1]!.id];
+    const hold = (levelId: string, sec: number) => [set({ levelId, durationSec: sec })];
+    const list = weekly('2026-10-01', [hold(p1, 30), hold(p2, 8), hold(p2, 10), hold(p2, 12)]);
+    const r = exerciseTrend(fl, list, t);
+    expect(r?.status).toBe('progress');
+    expect(r?.sessions).toBe(3); // økta på P1 er ikke med
+    expect(r?.reason).toContain('Lengste hold på P2');
+  });
+  it('kroppsvekt med ekstravekt følger estimert 1RM, uten ekstravekt beste sett', () => {
+    const pull = lib.get('ex-pull-up')!;
+    const plain = weekly('2026-10-01', [[set({ reps: 8 })], [set({ reps: 9 })], [set({ reps: 10 })]]);
+    expect(exerciseTrend(pull, plain, t)?.reason).toContain('Beste sett +');
+    const loaded = weekly('2026-10-01', [[set({ weightKg: 10, reps: 5 })], [set({ weightKg: 12.5, reps: 5 })], [set({ weightKg: 15, reps: 5 })]]);
+    const r = exerciseTrend(pull, loaded, t);
+    expect(r?.status).toBe('progress');
+    expect(r?.reason).toContain('ekstravekt');
+  });
 });
 
 describe('varsel om lettuke', () => {

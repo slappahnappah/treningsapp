@@ -4,6 +4,7 @@ import { RestBar } from './RestBar';
 import { DiaryTab } from './Diary';
 import { SettingsTab } from './Settings';
 import { ExercisesTab, RoutinesTab, StartTab } from './tabs';
+import { useUpdateAvailable } from './update';
 import { useWakeLock } from './wakeLock';
 
 type Tab = 'routines' | 'diary' | 'start' | 'exercises' | 'settings';
@@ -21,9 +22,18 @@ function Shell() {
   const [tab, setTab] = useState<Tab>('start');
   // Skjermen holdes våken under hele økta, så hviletimeren kan gi lyd.
   useWakeLock(!!active);
+  const update = useUpdateAvailable();
 
   return (
     <div className="app">
+      {update && (
+        <div className="update-banner" role="status">
+          <span>En ny versjon av appen er klar.</span>
+          <button className="btn btn-primary" onClick={() => location.reload()}>
+            Oppdater
+          </button>
+        </div>
+      )}
       <main className="main">
         {tab === 'routines' && <RoutinesTab onStarted={() => setTab('start')} />}
         {tab === 'diary' && <DiaryTab />}
