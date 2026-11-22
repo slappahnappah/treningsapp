@@ -22,6 +22,7 @@ import { SUPABASE_KEY, SUPABASE_URL } from './syncConfig';
 const LS_URL = 'stige.sync.url';
 const LS_KEY = 'stige.sync.key';
 const LS_CURSOR = 'stige.sync.cursor';
+const LS_PENDING = 'stige.sync.pending';
 const SYNCED_KV = ['settings', 'deloadWeeks', 'aiExport'];
 
 const ls = {
@@ -145,6 +146,7 @@ export async function signOut(): Promise<void> {
   await client?.auth.signOut({ scope: 'local' });
   await db.synced.clear();
   ls.set(LS_CURSOR, '');
+  ls.set(LS_PENDING, '');
   setState({ lastSyncAt: null, error: null, status: 'idle' });
 }
 
@@ -201,6 +203,17 @@ const local: SyncLocal = {
   },
   async setCursor(cursor) {
     ls.set(LS_CURSOR, cursor);
+  },
+  // I localStorage, ikke i databasen, så det ikke starter en ny synkrunde.
+  async getPending() {
+    try {
+      return new Map(Object.entries(JSON.parse(ls.get(LS_PENDING) || '{}') as Record<string, string>));
+    } catch {
+      return new Map();
+    }
+  },
+  async setPending(pending) {
+    ls.set(LS_PENDING, pending.size > 0 ? JSON.stringify(Object.fromEntries(pending)) : '');
   },
   // Økta som er i gang på denne enheten, skal ikke overskrives av serveren.
   isProtected: (r) => r.kind === 'workout' && !(r.data as Workout).endedAt,

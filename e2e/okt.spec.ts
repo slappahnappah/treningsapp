@@ -174,3 +174,35 @@ test('holdeklokka åpnes fra økta og teller', async ({ page }) => {
   await clock.getByRole('button', { name: 'Lukk' }).click();
   await expect(clock).toHaveCount(0);
 });
+
+test('lage en ny øvelse rett fra «Legg til øvelse» legger den inn i økta', async ({ page }) => {
+  await startEmptyWorkout(page);
+  await page.getByRole('button', { name: '+ Legg til øvelse' }).click();
+  await page.locator('.overlay .search').fill('Kettlebell swing');
+  await page.getByRole('button', { name: '+ Lag ny øvelse «Kettlebell swing»' }).click();
+  await page.getByRole('dialog', { name: 'Ny øvelse' }).getByRole('button', { name: 'Lagre' }).click();
+  await expect(page.locator('.overlay')).toHaveCount(0);
+  await expect(card(page, 'Kettlebell swing')).toBeVisible();
+  await logSet(page, 'Kettlebell swing', 0, '24', '15');
+  await skipRest(page);
+  await page.reload();
+  await expect(card(page, 'Kettlebell swing')).toBeVisible();
+  await finishWorkout(page);
+  await expect(page.locator('.summary-text')).toContainText('Kettlebell swing');
+});
+
+test('en øvelse laget under økta kan legges til og blir med når økta lagres', async ({ page }) => {
+  await openApp(page);
+  await page.locator('.btn-tile').first().click();
+  await expect(page.locator('.workout .card').first()).toBeVisible();
+  await goTab(page, 'Øvelser');
+  await page.getByRole('button', { name: '+ Ny øvelse' }).click();
+  await page.getByRole('dialog', { name: 'Ny øvelse' }).getByLabel('Navn', { exact: false }).first().fill('Landmine press');
+  await page.getByRole('dialog', { name: 'Ny øvelse' }).getByRole('button', { name: 'Lagre' }).click();
+  await goTab(page, 'Økt');
+  await addExercise(page, 'Landmine press');
+  await logSet(page, 'Landmine press', 0, '20', '10');
+  await skipRest(page);
+  await finishWorkout(page);
+  await expect(page.locator('.summary-text')).toContainText('Landmine press');
+});

@@ -15,7 +15,7 @@ import {
 import { deleteExercise } from './actions';
 import { useData } from './data';
 import { db } from './db';
-import { TYPE_LABEL } from './ExercisePicker';
+import { TYPE_LABEL } from './labels';
 import { Overlay } from './ui';
 
 const EQUIPMENT: Record<Equipment, string> = {
@@ -53,9 +53,11 @@ interface Props {
   isNew?: boolean;
   onClose: () => void;
   onDeleted?: () => void;
+  /** Kalles med den lagrede øvelsen, før onClose. */
+  onSaved?: (exercise: Exercise) => void;
 }
 
-export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
+export function ExerciseEditor({ exercise, isNew, onClose, onDeleted, onSaved }: Props) {
   const { workouts } = useData();
   const [draft, setDraft] = useState<Exercise>(exercise);
   const set = (patch: Partial<Exercise>) => setDraft((d) => ({ ...d, ...patch }));
@@ -120,6 +122,7 @@ export function ExerciseEditor({ exercise, isNew, onClose, onDeleted }: Props) {
       });
     }
     await db.exercises.put(clean);
+    onSaved?.(clean);
     onClose();
   };
 

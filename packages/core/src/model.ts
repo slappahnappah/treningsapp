@@ -145,8 +145,13 @@ export interface Settings {
   warmupScheme: { percent: number; reps: number }[];
   thresholds: ProgressionThresholds;
   holdClock: { volume: number; beepEverySec: number; countdownSec?: number };
-  /** Lyd fra timer og holdeklokke selv om telefonen står på lydløs. Standard er på. */
+  /** Utgått: stoppet musikk og podkast på iPhone. Erstattet av `soundOverMute`. */
   soundWhenSilent?: boolean;
+  /**
+   * Lyd fra timer og holdeklokke selv om telefonen står på lydløs. Standard er av,
+   * fordi det stopper musikk og podkast fra andre apper på iPhone.
+   */
+  soundOverMute?: boolean;
 }
 
 export const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10] as const;

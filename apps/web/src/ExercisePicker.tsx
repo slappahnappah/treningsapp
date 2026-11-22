@@ -1,20 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { Exercise } from '@stige/core';
 import { useData } from './data';
+import { ExerciseEditor, newExercise } from './ExerciseEditor';
 import { Overlay } from './ui';
 
-export const TYPE_LABEL: Record<Exercise['type'], string> = {
-  weight_reps: 'Vekt × reps',
-  bodyweight: 'Kroppsvekt',
-  assisted: 'Assistert',
-  time: 'Tid',
-  level: 'Nivå',
-};
+import { typeLabel } from './labels';
 
-export function typeLabel(e: Exercise): string {
-  if (e.type === 'level') return `Nivå · ${e.levelMetric === 'seconds' ? 'sekunder' : 'reps'}`;
-  return TYPE_LABEL[e.type];
-}
+export { TYPE_LABEL, typeLabel } from './labels';
 
 export function useExerciseSearch(query: string): Exercise[] {
   const { exercises } = useData();
@@ -34,7 +26,9 @@ interface PickerProps {
 
 export function ExercisePicker({ onPick, onClose, title = 'Legg til øvelse' }: PickerProps) {
   const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState<Exercise | null>(null);
   const list = useExerciseSearch(query);
+  const typed = query.trim();
   return (
     <Overlay label="Velg øvelse">
       <header className="overlay-head">
@@ -61,6 +55,12 @@ export function ExercisePicker({ onPick, onClose, title = 'Legg til øvelse' }: 
         ))}
         {list.length === 0 && <li className="muted pad">Ingen øvelser passer med søket.</li>}
       </ul>
+      <button className="btn btn-wide" onClick={() => setCreating({ ...newExercise(), name: typed })}>
+        {typed ? `+ Lag ny øvelse «${typed}»` : '+ Lag ny øvelse'}
+      </button>
+      {creating && (
+        <ExerciseEditor exercise={creating} isNew onClose={() => setCreating(null)} onSaved={(e) => onPick(e)} />
+      )}
     </Overlay>
   );
 }
