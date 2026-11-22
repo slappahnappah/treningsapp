@@ -15,7 +15,9 @@ export function audioContext(): AudioContext | null {
 }
 
 // Lyd selv om lydbryteren på iPhone står på lydløs. Styres fra innstillingene.
-let throughMute = true;
+// Standard er av: da blandes pipene inn i musikk og podkast fra andre apper,
+// i stedet for å ta over lyden og sette dem på pause.
+let throughMute = false;
 let unlocked = false;
 let keepers = 0;
 let silent: HTMLAudioElement | null = null;
@@ -44,9 +46,10 @@ function silentClip(): string {
 }
 
 /**
- * Stille lyd i sløyfe mens en økt eller holdeklokka er i gang. På iPhone gjør
- * den at pipene fra Web Audio går i mediekanalen, som ikke dempes av
- * lydbryteren, og at lyden holdes i gang mellom pipene.
+ * Stille lyd i sløyfe mens en økt eller holdeklokka er i gang, bare når lyd
+ * gjennom lydbryteren er slått på. På iPhone gjør den at pipene går i
+ * mediekanalen, som ikke dempes av lydbryteren. Prisen er at musikk og podkast
+ * fra andre apper stopper, så den brukes aldri ellers.
  */
 function syncKeepAlive(): void {
   const want = keepers > 0 && throughMute && unlocked;
@@ -67,7 +70,8 @@ function syncKeepAlive(): void {
 }
 
 function applySession(): void {
-  // Nyere Safari: «playback» gir lyd også når lydbryteren står på lydløs. «ambient» følger bryteren.
+  // Nyere Safari: «ambient» blander pipene inn i annen lyd (musikk, podkast) og følger lydbryteren.
+  // «playback» gir lyd også på lydløs, men setter annen lyd på pause.
   try {
     const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
     const type = throughMute ? 'playback' : 'ambient';
@@ -79,9 +83,12 @@ function applySession(): void {
 
 export function configureAudio(options: { throughMute: boolean }): void {
   throughMute = options.throughMute;
-  if (unlocked) applySession();
+  applySession();
   syncKeepAlive();
 }
+
+// Sett lydøkta før noe lyd spilles, så appen aldri tar over lyden fra andre apper.
+applySession();
 
 /** Holder lyden våken så lenge noe trenger den. Returnerer en funksjon som slipper taket. */
 export function keepAudioAlive(): () => void {

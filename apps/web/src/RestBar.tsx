@@ -11,7 +11,7 @@ import { useNow } from './hooks';
  */
 export function RestBar() {
   const { rest, settings, active } = useData();
-  const throughMute = settings.soundWhenSilent ?? true;
+  const throughMute = settings.soundOverMute ?? false;
   const training = !!active || !!rest;
 
   useEffect(() => configureAudio({ throughMute }), [throughMute]);

@@ -86,14 +86,14 @@ export function SettingsTab() {
           <span>Lyd også når telefonen står på lydløs</span>
           <input
             type="checkbox"
-            checked={settings.soundWhenSilent ?? true}
-            onChange={(e) => void saveSettings({ soundWhenSilent: e.target.checked })}
+            checked={settings.soundOverMute ?? false}
+            onChange={(e) => void saveSettings({ soundOverMute: e.target.checked })}
           />
         </label>
         <p className="muted small pad-x">
-          Når dette er på, kommer pipene selv om lydbryteren på iPhone står på lydløs. Musikk fra andre apper kan da bli
-          satt på pause. Skru det av hvis du heller vil at appen skal følge lydbryteren. Volumet følger volumknappene på
-          telefonen.
+          Av (anbefalt): musikk og podkast spiller videre, og pipene legges oppå. Da følger pipene lydbryteren på iPhone,
+          så de høres ikke når telefonen står på lydløs. På: pipene kommer også på lydløs, men musikk og podkast fra
+          andre apper stopper mens økta pågår. Volumet følger volumknappene på telefonen.
         </p>
       </section>
 

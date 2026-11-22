@@ -16,6 +16,8 @@ class FakeServer implements SyncRemote {
   rows = new Map<string, RemoteRow>();
   private clock = 0;
   failNextPush = false;
+  /** Lagrer, men svaret kommer aldri fram (appen ble lagt i bakgrunnen på iPhone). */
+  loseNextResponse = false;
   private stamp() {
     return `2026-11-14T12:00:${String(++this.clock).padStart(6, '0')}Z`;
   }
@@ -33,6 +35,10 @@ class FakeServer implements SyncRemote {
     for (const r of rows) {
       this.rows.set(syncKey(r.kind, r.id), { ...(JSON.parse(JSON.stringify(r)) as PushRow), updatedAt: this.stamp() });
     }
+    if (this.loseNextResponse) {
+      this.loseNextResponse = false;
+      throw new Error('svaret kom aldri fram');
+    }
   }
 }
 
@@ -40,6 +46,7 @@ class Device implements SyncLocal {
   records = new Map<string, SyncRecord>();
   synced = new Map<string, string>();
   cursor: string | undefined;
+  pending = new Map<string, string>();
   constructor(seed: SyncRecord[] = []) {
     for (const r of seed) this.records.set(syncKey(r.kind, r.id), r);
   }
@@ -72,6 +79,12 @@ class Device implements SyncLocal {
   }
   async setCursor(c: string) {
     this.cursor = c;
+  }
+  async getPending() {
+    return new Map(this.pending);
+  }
+  async setPending(p: Map<string, string>) {
+    this.pending = new Map(p);
   }
   isProtected(r: SyncRecord) {
     return r.kind === 'workout' && !(r.data as { endedAt?: string }).endedAt;
@@ -218,5 +231,30 @@ describe('synk', () => {
     await expect(syncOnce(phone, server)).rejects.toThrow('nettfeil');
     expect(phone.synced.size).toBe(0);
     expect(await syncOnce(phone, server)).toEqual({ pulled: 0, pushed: 2 });
+  });
+
+  it('økta som er i gang beholder nye øvelser når svaret på første opplasting ble borte', async () => {
+    const server = new FakeServer();
+    const phone = new Device(seed());
+    await syncOnce(phone, server);
+    phone.set('workout', 'w1', { exercises: ['knebøy'] });
+    server.loseNextResponse = true;
+    await expect(syncOnce(phone, server)).rejects.toThrow();
+    phone.set('workout', 'w1', { exercises: ['knebøy', 'egen øvelse'] });
+    await syncOnce(phone, server);
+    expect(phone.get('workout', 'w1')).toEqual({ exercises: ['knebøy', 'egen øvelse'] });
+    expect(server.rows.get('workout:w1')?.data).toEqual({ exercises: ['knebøy', 'egen øvelse'] });
+  });
+
+  it('en ny egen øvelse beholder endringene når svaret på opplastingen ble borte', async () => {
+    const server = new FakeServer();
+    const phone = new Device(seed());
+    await syncOnce(phone, server);
+    phone.set('exercise', 'ex-egen', { name: 'Egen', rest: 120 });
+    server.loseNextResponse = true;
+    await expect(syncOnce(phone, server)).rejects.toThrow();
+    phone.set('exercise', 'ex-egen', { name: 'Egen', rest: 90 });
+    await syncOnce(phone, server);
+    expect(phone.get('exercise', 'ex-egen')).toEqual({ name: 'Egen', rest: 90 });
   });
 });

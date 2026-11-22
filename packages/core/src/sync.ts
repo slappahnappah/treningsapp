@@ -27,6 +27,13 @@ export interface SyncLocal {
   setCursor(cursor: string): Promise<void>;
   /** Poster som ikke skal overskrives av serveren, for eksempel økta som er i gang. */
   isProtected?(record: SyncRecord): boolean;
+  /**
+   * Fingeravtrykk av det som er sendt, men der svaret ikke kom fram ennå. Lagres
+   * før opplasting og tømmes etterpå, så et ekko av en opplasting der svaret ble
+   * borte (appen lagt i bakgrunnen) ikke overskriver nyere endringer på enheten.
+   */
+  getPending?(): Promise<Map<string, string>>;
+  setPending?(pending: Map<string, string>): Promise<void>;
 }
 
 export interface SyncRemote {
@@ -75,6 +82,7 @@ export function fingerprint(value: unknown): string {
  */
 export async function syncOnce(local: SyncLocal, remote: SyncRemote): Promise<SyncResult> {
   const synced = await local.getSynced();
+  const pending = (await local.getPending?.()) ?? new Map<string, string>();
   const changes = new Map<string, string | undefined>();
   const mark = (key: string, value: string | undefined) => {
     changes.set(key, value);
@@ -110,7 +118,11 @@ export async function syncOnce(local: SyncLocal, remote: SyncRemote): Promise<Sy
     } else {
       const print = fingerprint(row.data);
       const keepMine = (dirty && mine && local.isProtected?.(mine)) || false;
-      if (print === known) {
+      if (print !== known && pending.get(key) === print) {
+        // Ekko av vår egen opplasting der svaret ble borte. Serveren har det vi sendte,
+        // og endringer gjort her etterpå sendes opp i steg 2.
+        mark(key, print);
+      } else if (print === known) {
         // Serveren har det samme som ved forrige synk (ofte vårt eget ekko).
         // Lokale endringer og slettinger siden da sendes opp i steg 2.
       } else if (keepMine) {
@@ -152,6 +164,11 @@ export async function syncOnce(local: SyncLocal, remote: SyncRemote): Promise<Sy
     }
   }
   if (push.length > 0) {
+    if (local.setPending) {
+      const next = new Map(pending);
+      for (const [k, v] of after) if (v !== undefined) next.set(k, v);
+      await local.setPending(next);
+    }
     await remote.push(push);
     for (const [k, v] of after) changes.set(k, v);
   }
@@ -159,5 +176,6 @@ export async function syncOnce(local: SyncLocal, remote: SyncRemote): Promise<Sy
   // Lagre tilstanden først når alt har gått bra, så en avbrutt runde bare gjentas.
   if (changes.size > 0) await local.setSynced(changes);
   if (newCursor && newCursor !== cursor) await local.setCursor(newCursor);
+  if (local.setPending && (pending.size > 0 || push.length > 0)) await local.setPending(new Map());
   return { pulled, pushed: push.length };
 }
